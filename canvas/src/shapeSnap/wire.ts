@@ -4,11 +4,12 @@
 import {
   getPointsFromDrawSegments,
   type Editor,
+  type IndexKey,
   type TLDrawShape,
   type TLShapeId,
 } from 'tldraw'
 import { onInkComplete } from './inkEvents'
-import { recognizeInk } from './recognize'
+import { recognizeInk, type RecognizedInk } from './recognize'
 
 export interface ShapeSnapOptions {
   // Called after a snap lands; the Bridge ticket connects this to the haptic.
@@ -38,21 +39,83 @@ function snapCompletedInk(editor: Editor, id: TLShapeId, options: ShapeSnapOptio
   editor.markHistoryStoppingPoint('shape snap')
   editor.run(() => {
     editor.deleteShape(draw.id)
-    editor.createShape({
-      type: 'geo',
-      x: draw.x + result.x,
-      y: draw.y + result.y,
-      opacity: draw.opacity,
-      props: {
-        geo: 'ellipse',
-        w: result.w,
-        h: result.h,
-        color: draw.props.color,
-        dash: draw.props.dash,
-        size: draw.props.size,
-        fill: draw.props.fill,
-      },
-    })
+    createSnappedShape(editor, draw, result)
   })
   options.onSnap?.()
+}
+
+function createSnappedShape(
+  editor: Editor,
+  draw: TLDrawShape,
+  result: Exclude<RecognizedInk, { kind: 'none' }>
+): void {
+  // Style props carry over only where the target shape accepts them: geo and
+  // arrow shapes take fill, line shapes do not.
+  const inkStyle = {
+    color: draw.props.color,
+    dash: draw.props.dash,
+    size: draw.props.size,
+  }
+
+  switch (result.kind) {
+    case 'rectangle':
+    case 'diamond':
+    case 'ellipse': {
+      editor.createShape({
+        type: 'geo',
+        x: draw.x + result.x,
+        y: draw.y + result.y,
+        opacity: draw.opacity,
+        props: {
+          geo: result.kind,
+          w: result.w,
+          h: result.h,
+          ...inkStyle,
+          fill: draw.props.fill,
+        },
+      })
+      return
+    }
+    case 'arrow': {
+      // Arrow start/end props are relative to the shape's origin; anchor the
+      // origin at the drawn start.
+      editor.createShape({
+        type: 'arrow',
+        x: draw.x + result.start.x,
+        y: draw.y + result.start.y,
+        opacity: draw.opacity,
+        props: {
+          start: { x: 0, y: 0 },
+          end: { x: result.end.x - result.start.x, y: result.end.y - result.start.y },
+          arrowheadStart: 'none',
+          arrowheadEnd: 'arrow',
+          ...inkStyle,
+          fill: draw.props.fill,
+        },
+      })
+      return
+    }
+    case 'line': {
+      editor.createShape({
+        type: 'line',
+        x: draw.x + result.start.x,
+        y: draw.y + result.start.y,
+        opacity: draw.opacity,
+        props: {
+          spline: 'line',
+          points: {
+            a1: { id: 'a1', index: 'a1' as IndexKey, x: 0, y: 0 },
+            a2: {
+              id: 'a2',
+              index: 'a2' as IndexKey,
+              x: result.end.x - result.start.x,
+              y: result.end.y - result.start.y,
+            },
+          },
+          ...inkStyle,
+        },
+      })
+      return
+    }
+  }
 }
