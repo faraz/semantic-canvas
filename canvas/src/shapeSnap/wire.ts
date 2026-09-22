@@ -2,6 +2,7 @@
 // and — on a hit — replace the Ink with clean geometry as a single undoable
 // entry, so one undo restores it.
 import {
+  createShapeId,
   getPointsFromDrawSegments,
   type Editor,
   type IndexKey,
@@ -14,6 +15,10 @@ import { recognizeInk, type RecognizedInk } from './recognize'
 export interface ShapeSnapOptions {
   // Called after a snap lands; the Bridge ticket connects this to the haptic.
   onSnap?: () => void
+  // Called after a snap lands with the consumed Ink's id and the created
+  // shape's id. Illustration Snap uses this to keep tracking a group member
+  // through its geometric snap (see illustrationSnap/wire.ts).
+  onInkSnapped?: (inkId: TLShapeId, snappedShapeId: TLShapeId) => void
 }
 
 export function wireShapeSnap(editor: Editor, options: ShapeSnapOptions = {}): () => void {
@@ -37,17 +42,20 @@ function snapCompletedInk(editor: Editor, id: TLShapeId, options: ShapeSnapOptio
   if (result.kind === 'none') return
 
   editor.markHistoryStoppingPoint('shape snap')
+  const snappedShapeId = createShapeId()
   editor.run(() => {
     editor.deleteShape(draw.id)
-    createSnappedShape(editor, draw, result)
+    createSnappedShape(editor, draw, result, snappedShapeId)
   })
   options.onSnap?.()
+  options.onInkSnapped?.(draw.id, snappedShapeId)
 }
 
 function createSnappedShape(
   editor: Editor,
   draw: TLDrawShape,
-  result: Exclude<RecognizedInk, { kind: 'none' }>
+  result: Exclude<RecognizedInk, { kind: 'none' }>,
+  id: TLShapeId
 ): void {
   // Style props carry over only where the target shape accepts them: geo and
   // arrow shapes take fill, line shapes do not.
@@ -62,6 +70,7 @@ function createSnappedShape(
     case 'diamond':
     case 'ellipse': {
       editor.createShape({
+        id,
         type: 'geo',
         x: draw.x + result.x,
         y: draw.y + result.y,
@@ -80,6 +89,7 @@ function createSnappedShape(
       // Arrow start/end props are relative to the shape's origin; anchor the
       // origin at the drawn start.
       editor.createShape({
+        id,
         type: 'arrow',
         x: draw.x + result.start.x,
         y: draw.y + result.start.y,
@@ -97,6 +107,7 @@ function createSnappedShape(
     }
     case 'line': {
       editor.createShape({
+        id,
         type: 'line',
         x: draw.x + result.start.x,
         y: draw.y + result.start.y,

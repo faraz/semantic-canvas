@@ -14,6 +14,8 @@ import { postShapeSnapped } from './bridge'
 import { clearBoard } from './clearBoard'
 import { wireShapeSnap } from './shapeSnap/wire'
 import { wireInkCapture } from './shapeSnap/capture'
+import { wireIllustrationSnap } from './illustrationSnap/wire'
+import { wireTemplateCapture } from './illustrationSnap/capture'
 
 function MainMenu() {
   const editor = useEditor()
@@ -34,11 +36,18 @@ function MainMenu() {
 const components: TLComponents = { MainMenu }
 
 function mount(editor: Editor) {
-  const disposeSnap = wireShapeSnap(editor, { onSnap: postShapeSnapped })
+  const illustrationSnap = wireIllustrationSnap(editor, { onSnap: postShapeSnapped })
+  const disposeSnap = wireShapeSnap(editor, {
+    onSnap: postShapeSnapped,
+    onInkSnapped: illustrationSnap.noteInkSnapped,
+  })
   const disposeCapture = wireInkCapture(editor)
+  const disposeTemplateCapture = wireTemplateCapture(editor)
   return () => {
+    illustrationSnap.dispose()
     disposeSnap()
     disposeCapture()
+    disposeTemplateCapture()
   }
 }
 
