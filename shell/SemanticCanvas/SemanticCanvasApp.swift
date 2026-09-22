@@ -4,7 +4,7 @@ import SwiftUI
 struct SemanticCanvasApp: App {
     var body: some Scene {
         WindowGroup {
-            CanvasWebView()
+            CanvasHostView()
                 .ignoresSafeArea()
                 .statusBarHidden(true)
                 .persistentSystemOverlays(.hidden)

@@ -19,13 +19,17 @@ cd canvas && npm install
 brew install xcodegen   # if not installed
 ```
 
+Set your Apple developer team in `shell/project.yml` (`DEVELOPMENT_TEAM`) —
+that file is the source of truth; a team picked inside Xcode is reverted the
+next time `xcodegen` runs.
+
 ## Build & run on the iPad
 
 ```
 cd canvas && npm run build            # bundles the Canvas
 cp dist/index.html ../shell/SemanticCanvas/index.html
 cd ../shell && xcodegen               # (re)generate the Xcode project
-open SemanticCanvas.xcodeproj         # set your Team once, then Run on the iPad
+open SemanticCanvas.xcodeproj         # then Run on the iPad
 ```
 
 ## Development

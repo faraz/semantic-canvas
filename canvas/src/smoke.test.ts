@@ -5,7 +5,15 @@ import { describe, expect, it } from 'vitest'
 
 describe('test runner', () => {
   it('runs TypeScript tests', () => {
-    const vocabulary = ['Shell', 'Canvas', 'Board', 'Ink', 'Shape Snap', 'Bridge']
-    expect(vocabulary).toHaveLength(6)
+    const vocabulary = [
+      'Shell',
+      'Canvas',
+      'Board',
+      'Ink',
+      'Shape Snap',
+      'Illustration Snap',
+      'Bridge',
+    ]
+    expect(vocabulary).toHaveLength(7)
   })
 })

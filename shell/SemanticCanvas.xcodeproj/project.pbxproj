@@ -7,14 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6775064323BEC13C0B0B54D8 /* CanvasWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F2D447C1AC7ABC0ECECEC5 /* CanvasWebView.swift */; };
 		9B9767C412BC0ECD49CB7C64 /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 783111793B28107816B466DA /* index.html */; };
+		A2BDA0208CAC3493E81AED2D /* CanvasHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */; };
 		A983AE6FFD919D4EF062A36F /* SemanticCanvasApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		33F2D447C1AC7ABC0ECECEC5 /* CanvasWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasWebView.swift; sourceTree = "<group>"; };
 		34EBEF749BA0260A8DD6B464 /* SemanticCanvas.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SemanticCanvas.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasHostView.swift; sourceTree = "<group>"; };
 		783111793B28107816B466DA /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SemanticCanvasApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -23,7 +23,7 @@
 		315FD8B3AD43251CD78E3E55 /* SemanticCanvas */ = {
 			isa = PBXGroup;
 			children = (
-				33F2D447C1AC7ABC0ECECEC5 /* CanvasWebView.swift */,
+				64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */,
 				783111793B28107816B466DA /* index.html */,
 				BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */,
 			);
@@ -117,7 +117,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6775064323BEC13C0B0B54D8 /* CanvasWebView.swift in Sources */,
+				A2BDA0208CAC3493E81AED2D /* CanvasHostView.swift in Sources */,
 				A983AE6FFD919D4EF062A36F /* SemanticCanvasApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

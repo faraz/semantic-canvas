@@ -1,7 +1,7 @@
 import SwiftUI
 import WebKit
 
-struct CanvasWebView: UIViewRepresentable {
+struct CanvasHostView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         // Ephemeral until the persistent-Board ticket lands (#9).
