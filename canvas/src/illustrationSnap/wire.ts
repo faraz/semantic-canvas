@@ -2,7 +2,7 @@
 // by time and proximity (grouping.ts); when a group settles, the $Q template
 // recognizer runs on the group's original Ink points and — on a match —
 // replaces the group with a clean composed illustration scaled to the drawn
-// bounds, as a single undoable entry.
+// bounds (illustrate.ts), as a single undoable entry.
 //
 // Precedence design (the Shape Snap tension, resolved):
 // Geometric Shape Snap stays single-stroke and runs first — a stick figure's
@@ -23,22 +23,17 @@
 // intermediate geometric snaps; a second undo then unwinds a member's
 // geometric snap as usual.
 
-import {
-  createShapeId,
-  type Editor,
-  type IndexKey,
-  type TLDefaultColorStyle,
-  type TLDefaultDashStyle,
-  type TLDefaultFillStyle,
-  type TLDefaultSizeStyle,
-  type TLDrawShape,
-  type TLShapeId,
-} from 'tldraw'
-import { b64Vecs } from '@tldraw/tlschema'
+import { type Editor, type TLDrawShape, type TLShapeId } from 'tldraw'
 import { onInkComplete } from '../shapeSnap/inkEvents'
-import type { InkPoint } from '../shapeSnap/recognize'
-import { createGroupTracker, GROUP_PROXIMITY_PX, type GroupMember } from './grouping'
-import { recognizeIllustration, type ReplacementPart } from './templates'
+import { createIllustration, type InkStyle } from './illustrate'
+import {
+  createGroupTracker,
+  GROUP_PROXIMITY_PX,
+  inkBounds,
+  union,
+  type GroupMember,
+} from './grouping'
+import { recognizeIllustration } from './templates'
 
 // Minimum apparent (on-screen) size of the group's larger bounding-box
 // dimension, in pixels — mirrors the Shape Snap gate so accidental marks
@@ -61,23 +56,15 @@ export interface IllustrationSnapHandle {
   dispose(): void
 }
 
-interface InkStyle {
-  color: TLDefaultColorStyle
-  dash: TLDefaultDashStyle
-  size: TLDefaultSizeStyle
-  fill: TLDefaultFillStyle
-  opacity: number
-}
-
 export function wireIllustrationSnap(
   editor: Editor,
   options: IllustrationSnapOptions = {}
 ): IllustrationSnapHandle {
   // Style of each member's Ink, captured at completion (the draw shape may
   // be gone by settle time if geometric Shape Snap consumed it).
-  const styles = new Map<string, InkStyle>()
+  const styles = new Map<TLShapeId, InkStyle>()
 
-  const tracker = createGroupTracker({
+  const tracker = createGroupTracker<TLShapeId>({
     timeWindowMs: options.timeWindowMs,
     proximityPx: options.proximityPx,
     settleMs: options.settleMs,
@@ -141,8 +128,8 @@ export function wireIllustrationSnap(
 
 function snapSettledGroup(
   editor: Editor,
-  members: GroupMember[],
-  styles: Map<string, InkStyle>,
+  members: GroupMember<TLShapeId>[],
+  styles: Map<TLShapeId, InkStyle>,
   options: IllustrationSnapOptions
 ): void {
   // Only members still on the Board — as Ink or as a geometric snap's
@@ -150,26 +137,16 @@ function snapSettledGroup(
   // group settled is neither matched on nor deleted.)
   const live = members.filter(
     (m) =>
-      editor.getShape(m.id as TLShapeId) !== undefined ||
-      (m.replacementId !== undefined &&
-        editor.getShape(m.replacementId as TLShapeId) !== undefined)
+      editor.getShape(m.id) !== undefined ||
+      (m.replacementId !== undefined && editor.getShape(m.replacementId) !== undefined)
   )
   if (live.length === 0) return
 
-  let minX = Infinity
-  let minY = Infinity
-  let maxX = -Infinity
-  let maxY = -Infinity
-  for (const member of live) {
-    for (const p of member.points) {
-      if (p.x < minX) minX = p.x
-      if (p.y < minY) minY = p.y
-      if (p.x > maxX) maxX = p.x
-      if (p.y > maxY) maxY = p.y
-    }
-  }
+  const drawn = live.map((m) => inkBounds(m.points)).reduce(union)
   const zoom = editor.getZoomLevel()
-  if (Math.max(maxX - minX, maxY - minY) * zoom < ILLUSTRATION_MIN_SCREEN_SIZE) return
+  if (Math.max(drawn.maxX - drawn.minX, drawn.maxY - drawn.minY) * zoom < ILLUSTRATION_MIN_SCREEN_SIZE) {
+    return
+  }
 
   const match = recognizeIllustration(live.map((m) => m.points))
   if (!match) return
@@ -185,152 +162,11 @@ function snapSettledGroup(
   editor.markHistoryStoppingPoint('illustration snap')
   editor.run(() => {
     for (const member of live) {
-      const inkId = member.id as TLShapeId
-      if (editor.getShape(inkId)) editor.deleteShape(inkId)
-      const replacementId = member.replacementId as TLShapeId | undefined
+      if (editor.getShape(member.id)) editor.deleteShape(member.id)
+      const replacementId = member.replacementId
       if (replacementId && editor.getShape(replacementId)) editor.deleteShape(replacementId)
     }
-    const ids = createIllustration(
-      editor,
-      match.template.replacement,
-      { minX, minY, maxX, maxY },
-      style
-    )
-    if (ids.length > 1) {
-      // Not editor.groupShapes: that helper silently no-ops unless the
-      // select tool is active, and an illustration lands mid-drawing with
-      // the draw tool up. Creating the group record and reparenting is the
-      // tool-independent core of the same operation.
-      const groupId = createShapeId()
-      editor.createShape({ id: groupId, type: 'group', x: minX, y: minY, props: {} })
-      editor.reparentShapes(ids, groupId)
-    }
+    createIllustration(editor, match.template.replacement, drawn, style)
   })
   options.onSnap?.()
-}
-
-interface Box {
-  minX: number
-  minY: number
-  maxX: number
-  maxY: number
-}
-
-function partBounds(part: ReplacementPart): Box {
-  if (part.kind === 'geo') {
-    return { minX: part.x, minY: part.y, maxX: part.x + part.w, maxY: part.y + part.h }
-  }
-  let minX = Infinity
-  let minY = Infinity
-  let maxX = -Infinity
-  let maxY = -Infinity
-  for (const p of part.points) {
-    if (p.x < minX) minX = p.x
-    if (p.y < minY) minY = p.y
-    if (p.x > maxX) maxX = p.x
-    if (p.y > maxY) maxY = p.y
-  }
-  return { minX, minY, maxX, maxY }
-}
-
-// Create the recipe's shapes, mapped (non-uniformly) so the recipe's own
-// bounds land exactly on the drawn bounds; returns the created shape ids.
-function createIllustration(
-  editor: Editor,
-  parts: readonly ReplacementPart[],
-  drawn: Box,
-  style: InkStyle
-): TLShapeId[] {
-  let recipe: Box | undefined
-  for (const part of parts) {
-    const b = partBounds(part)
-    recipe = recipe
-      ? {
-          minX: Math.min(recipe.minX, b.minX),
-          minY: Math.min(recipe.minY, b.minY),
-          maxX: Math.max(recipe.maxX, b.maxX),
-          maxY: Math.max(recipe.maxY, b.maxY),
-        }
-      : b
-  }
-  if (!recipe) return []
-
-  const sx = (drawn.maxX - drawn.minX) / Math.max(recipe.maxX - recipe.minX, 1e-6)
-  const sy = (drawn.maxY - drawn.minY) / Math.max(recipe.maxY - recipe.minY, 1e-6)
-  const mapX = (x: number) => drawn.minX + (x - recipe.minX) * sx
-  const mapY = (y: number) => drawn.minY + (y - recipe.minY) * sy
-
-  const inkStyle = { color: style.color, dash: style.dash, size: style.size }
-  const ids: TLShapeId[] = []
-
-  for (const part of parts) {
-    const id = createShapeId()
-    ids.push(id)
-    if (part.kind === 'geo') {
-      editor.createShape({
-        id,
-        type: 'geo',
-        x: mapX(part.x),
-        y: mapY(part.y),
-        opacity: style.opacity,
-        props: {
-          geo: part.geo,
-          w: Math.max(part.w * sx, 1),
-          h: Math.max(part.h * sy, 1),
-          ...inkStyle,
-          fill: part.fill ?? style.fill,
-        },
-      })
-      continue
-    }
-
-    const b = partBounds(part)
-    const originX = mapX(b.minX)
-    const originY = mapY(b.minY)
-    const local = part.points.map((p) => ({
-      x: mapX(p.x) - originX,
-      y: mapY(p.y) - originY,
-    }))
-
-    if (part.kind === 'line') {
-      const points: Record<string, { id: string; index: IndexKey; x: number; y: number }> = {}
-      local.forEach((p, i) => {
-        // Fractional index keys sort lexicographically; recipes keep lines
-        // under 10 points so a1..a9 stay ordered.
-        const key = `a${i + 1}`
-        points[key] = { id: key, index: key as IndexKey, x: p.x, y: p.y }
-      })
-      editor.createShape({
-        id,
-        type: 'line',
-        x: originX,
-        y: originY,
-        opacity: style.opacity,
-        props: { spline: 'line', points, ...inkStyle },
-      })
-      continue
-    }
-
-    // part.kind === 'draw': a clean freehand path (curves the geo/line
-    // primitives can't express), closed for filled silhouettes.
-    const path = b64Vecs.encodePoints(
-      local.map((p) => ({ x: p.x, y: p.y, z: 0.5 })),
-      3
-    )
-    editor.createShape({
-      id,
-      type: 'draw',
-      x: originX,
-      y: originY,
-      opacity: style.opacity,
-      props: {
-        segments: [{ type: 'free', path }],
-        isComplete: true,
-        isClosed: part.closed ?? false,
-        ...inkStyle,
-        fill: style.fill,
-      },
-    })
-  }
-  return ids
 }

@@ -9,8 +9,7 @@
 // Paste an entry into canvas/src/shapeSnap/fixtures/<name>.json as
 // { "name": "...", "expected": "ellipse" | "none", "points": [...] }.
 import { type Editor } from 'tldraw'
-import { onInkComplete } from './inkEvents'
-import type { InkPoint } from './recognize'
+import { wireCaptureRing } from '../captureRing'
 
 const MAX_CAPTURED = 20
 
@@ -21,22 +20,13 @@ declare global {
 }
 
 export function wireInkCapture(editor: Editor): () => void {
-  const captured: { points: InkPoint[] }[] = []
-
-  window.__inkCapture = {
-    dump: () => JSON.stringify(captured, null, 2),
-    clear: () => {
-      captured.length = 0
-    },
-  }
-
-  const dispose = onInkComplete(editor, (_id, points) => {
-    captured.push({ points: points.map((p) => ({ x: p.x, y: p.y })) })
-    if (captured.length > MAX_CAPTURED) captured.shift()
+  return wireCaptureRing(editor, {
+    global: '__inkCapture',
+    max: MAX_CAPTURED,
+    entry: (_editor, _id, points) => ({ points: points.map((p) => ({ x: p.x, y: p.y })) }),
+    handle: (ring) => ({
+      dump: () => JSON.stringify(ring.entries, null, 2),
+      clear: () => ring.clear(),
+    }),
   })
-
-  return () => {
-    dispose()
-    delete window.__inkCapture
-  }
 }

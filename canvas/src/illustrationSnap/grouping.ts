@@ -25,23 +25,25 @@ export const GROUP_TIME_WINDOW_MS = 1000
 export const GROUP_PROXIMITY_PX = 80
 export const GROUP_SETTLE_MS = 700
 
-export interface GroupMember {
-  id: string
+// Ids are opaque to grouping (no editor dependency); the wiring instantiates
+// Id as TLShapeId so members round-trip to the editor without casts.
+export interface GroupMember<Id extends string = string> {
+  id: Id
   points: InkPoint[] // page-space Ink points as drawn
   completedAt: number
   // Set when geometric Shape Snap consumed this Ink and produced a shape.
-  replacementId?: string
+  replacementId?: Id
 }
 
-interface Bounds {
+export interface Bounds {
   minX: number
   minY: number
   maxX: number
   maxY: number
 }
 
-export interface GroupTrackerOptions {
-  onSettled: (members: GroupMember[]) => void
+export interface GroupTrackerOptions<Id extends string = string> {
+  onSettled: (members: GroupMember<Id>[]) => void
   timeWindowMs?: number
   proximityPx?: number
   settleMs?: number
@@ -50,14 +52,14 @@ export interface GroupTrackerOptions {
   setTimer?: (fn: () => void, ms: number) => () => void
 }
 
-export interface GroupTracker {
+export interface GroupTracker<Id extends string = string> {
   // A stroke of Ink completed; joins the open group or settles it and
   // starts a new one. marginPx overrides proximityPx for this join decision
   // (the wiring passes proximityPx / zoom so the margin stays an on-screen
   // quantity in page-space coordinates).
-  addInk(member: { id: string; points: InkPoint[]; marginPx?: number }): void
+  addInk(member: { id: Id; points: InkPoint[]; marginPx?: number }): void
   // Record that geometric Shape Snap replaced a member's Ink with a shape.
-  noteReplacement(inkId: string, replacementId: string): void
+  noteReplacement(inkId: Id, replacementId: Id): void
   // The pen touched down again: postpone settling until that stroke
   // completes (addInk re-arms the timer).
   holdSettle(): void
@@ -66,7 +68,9 @@ export interface GroupTracker {
   dispose(): void
 }
 
-function strokeBounds(points: readonly InkPoint[]): Bounds {
+// Bounding box of a stroke of Ink; shared by grouping and the illustration
+// renderer (illustrate.ts).
+export function inkBounds(points: readonly InkPoint[]): Bounds {
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -80,7 +84,7 @@ function strokeBounds(points: readonly InkPoint[]): Bounds {
   return { minX, minY, maxX, maxY }
 }
 
-function union(a: Bounds, b: Bounds): Bounds {
+export function union(a: Bounds, b: Bounds): Bounds {
   return {
     minX: Math.min(a.minX, b.minX),
     minY: Math.min(a.minY, b.minY),
@@ -103,7 +107,9 @@ const defaultSetTimer = (fn: () => void, ms: number): (() => void) => {
   return () => clearTimeout(handle)
 }
 
-export function createGroupTracker(options: GroupTrackerOptions): GroupTracker {
+export function createGroupTracker<Id extends string = string>(
+  options: GroupTrackerOptions<Id>
+): GroupTracker<Id> {
   const {
     onSettled,
     timeWindowMs = GROUP_TIME_WINDOW_MS,
@@ -113,7 +119,7 @@ export function createGroupTracker(options: GroupTrackerOptions): GroupTracker {
     setTimer = defaultSetTimer,
   } = options
 
-  let members: GroupMember[] = []
+  let members: GroupMember<Id>[] = []
   let groupBounds: Bounds | undefined
   let cancelTimer: (() => void) | undefined
   let disposed = false
@@ -141,7 +147,7 @@ export function createGroupTracker(options: GroupTrackerOptions): GroupTracker {
     addInk({ id, points, marginPx }) {
       if (disposed || points.length === 0) return
       const completedAt = now()
-      const bounds = strokeBounds(points)
+      const bounds = inkBounds(points)
       const joins =
         members.length > 0 &&
         completedAt - members[members.length - 1].completedAt <= timeWindowMs &&

@@ -5,10 +5,10 @@ import {
   createShapeId,
   getPointsFromDrawSegments,
   type Editor,
-  type IndexKey,
   type TLDrawShape,
   type TLShapeId,
 } from 'tldraw'
+import { lineShapePoints } from '../lineShape'
 import { onInkComplete } from './inkEvents'
 import { recognizeInk, type RecognizedInk } from './recognize'
 
@@ -114,15 +114,10 @@ function createSnappedShape(
         opacity: draw.opacity,
         props: {
           spline: 'line',
-          points: {
-            a1: { id: 'a1', index: 'a1' as IndexKey, x: 0, y: 0 },
-            a2: {
-              id: 'a2',
-              index: 'a2' as IndexKey,
-              x: result.end.x - result.start.x,
-              y: result.end.y - result.start.y,
-            },
-          },
+          points: lineShapePoints([
+            { x: 0, y: 0 },
+            { x: result.end.x - result.start.x, y: result.end.y - result.start.y },
+          ]),
           ...inkStyle,
         },
       })

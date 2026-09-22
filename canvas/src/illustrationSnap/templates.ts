@@ -6,7 +6,8 @@
 // functions (same approach as shapeSnap/testInk.ts). The template capture
 // tooling (capture.ts: __templateCapture) is the path for replacing them
 // with real drawn examples: draw the symbol on the device, save the JSON,
-// and paste the stroke arrays in as additional examples.
+// and paste its "ink" arrays in as additional examples — or register the
+// captured JSON at runtime via templateFromCapture below.
 //
 // Replacement recipes are expressed in each template's own design space and
 // scaled (non-uniformly) so the recipe's bounds land exactly on the drawn
@@ -26,7 +27,7 @@ import { QDollarRecognizer } from './qdollar'
 // carry a tighter per-template maxDistance.
 export const ILLUSTRATION_MAX_DISTANCE = 2.0
 
-export interface StrokeOpts {
+export interface InkOpts {
   jitter?: number
   seed?: number
 }
@@ -65,19 +66,19 @@ export type ReplacementPart =
 
 export interface IllustrationTemplate {
   name: IllustrationName
-  examples: InkPoint[][][] // examples -> strokes -> points
+  examples: InkPoint[][][] // examples -> Ink strokes -> points
   replacement: ReplacementPart[]
-  // Minimum candidate stroke count for this template to compete (default 1).
+  // Minimum candidate Ink count for this template to compete (default 1).
   // $Q itself is articulation-invariant, but some symbols genuinely require
   // separate strokes — an exclamation mark without a lifted-pen dot is just a
   // line — and gating on it keeps plain single strokes from matching them.
-  minStrokes?: number
+  minInkCount?: number
   // Per-template rejection bar overriding ILLUSTRATION_MAX_DISTANCE, for
   // templates that sit close to a plain geometric shape in $Q space.
   maxDistance?: number
 }
 
-// --- stroke generators (deterministic; jitter/seed like testInk.ts) --------
+// --- Ink generators (deterministic; jitter/seed like testInk.ts) -----------
 
 type Rand = () => number
 
@@ -88,7 +89,7 @@ function jit(rand: Rand, jitter: number): number {
 // Straight polyline through waypoints, ~perSeg points per segment.
 function polyline(
   waypoints: readonly InkPoint[],
-  { jitter = 0, seed = 1, perSeg = 10 }: StrokeOpts & { perSeg?: number } = {}
+  { jitter = 0, seed = 1, perSeg = 10 }: InkOpts & { perSeg?: number } = {}
 ): InkPoint[] {
   const rand = seededRandom(seed)
   const points: InkPoint[] = []
@@ -116,7 +117,7 @@ function arc(
   ry: number,
   fromAngle: number,
   toAngle: number,
-  { jitter = 0, seed = 1, n = 24 }: StrokeOpts & { n?: number } = {}
+  { jitter = 0, seed = 1, n = 24 }: InkOpts & { n?: number } = {}
 ): InkPoint[] {
   const rand = seededRandom(seed)
   const points: InkPoint[] = []
@@ -130,15 +131,15 @@ function arc(
   return points
 }
 
-function dot(cx: number, cy: number, r: number, opts: StrokeOpts = {}): InkPoint[] {
+function dot(cx: number, cy: number, r: number, opts: InkOpts = {}): InkPoint[] {
   return arc(cx, cy, r, r, 0, Math.PI * 2, { ...opts, n: 10 })
 }
 
-// Each generator returns the symbol's strokes in its design space (~200x200).
+// Each generator returns the symbol's Ink in its design space (~200x200).
 // Tests reuse them with different jitter/seed to make rough drawings that are
 // genuinely distinct from the registered templates.
 
-export function stickFigureStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function stickFigureInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   return [
     arc(100, 32, 22, 22, -Math.PI / 2, (Math.PI * 3) / 2, { ...opts, seed, n: 26 }),
@@ -149,7 +150,7 @@ export function stickFigureStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   ]
 }
 
-export function starStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function starInk(opts: InkOpts = {}): InkPoint[][] {
   const cx = 100
   const cy = 105
   const R = 90
@@ -165,7 +166,7 @@ export function starStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   return [polyline(vertices, { ...opts, perSeg: 5 })]
 }
 
-export function cloudStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function cloudInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   const jitter = opts.jitter ?? 0
   const rand = seededRandom(seed)
@@ -182,11 +183,11 @@ export function cloudStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   return [points]
 }
 
-export function checkmarkStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function checkmarkInk(opts: InkOpts = {}): InkPoint[][] {
   return [polyline([{ x: 20, y: 110 }, { x: 78, y: 168 }, { x: 180, y: 32 }], { ...opts, perSeg: 14 })]
 }
 
-export function xStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function xInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   return [
     polyline([{ x: 30, y: 30 }, { x: 170, y: 170 }], { ...opts, seed, perSeg: 14 }),
@@ -194,7 +195,7 @@ export function xStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   ]
 }
 
-function questionMarkHook(opts: StrokeOpts = {}): InkPoint[] {
+function questionMarkHook(opts: InkOpts = {}): InkPoint[] {
   const seed = opts.seed ?? 1
   return [
     ...arc(100, 62, 40, 40, Math.PI, 2 * Math.PI, { ...opts, seed, n: 20 }),
@@ -211,12 +212,12 @@ function questionMarkHook(opts: StrokeOpts = {}): InkPoint[] {
   ]
 }
 
-export function questionMarkStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function questionMarkInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   return [questionMarkHook(opts), dot(100, 172, 5, { ...opts, seed: seed + 2 })]
 }
 
-export function exclamationMarkStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function exclamationMarkInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   return [
     polyline([{ x: 100, y: 24 }, { x: 100, y: 128 }], { ...opts, seed, perSeg: 14 }),
@@ -224,7 +225,7 @@ export function exclamationMarkStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   ]
 }
 
-export function heartStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function heartInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   const jitter = opts.jitter ?? 0
   const rand = seededRandom(seed)
@@ -244,7 +245,7 @@ export function heartStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   return [points]
 }
 
-export function lightbulbStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function lightbulbInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   return [
     arc(100, 78, 46, 46, -Math.PI / 2, (Math.PI * 3) / 2, { ...opts, seed, n: 30 }),
@@ -261,7 +262,7 @@ export function lightbulbStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   ]
 }
 
-export function speechBubbleStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function speechBubbleInk(opts: InkOpts = {}): InkPoint[][] {
   return [
     polyline(
       [
@@ -279,7 +280,7 @@ export function speechBubbleStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   ]
 }
 
-function cylinderBody(opts: StrokeOpts = {}): InkPoint[] {
+function cylinderBody(opts: InkOpts = {}): InkPoint[] {
   const seed = opts.seed ?? 1
   return [
     ...polyline([{ x: 38, y: 42 }, { x: 38, y: 138 }], { ...opts, seed, perSeg: 10 }),
@@ -288,7 +289,7 @@ function cylinderBody(opts: StrokeOpts = {}): InkPoint[] {
   ]
 }
 
-export function cylinderStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function cylinderInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   return [
     arc(100, 42, 62, 20, 0, 2 * Math.PI, { ...opts, seed: seed + 3, n: 28 }),
@@ -298,7 +299,7 @@ export function cylinderStrokes(opts: StrokeOpts = {}): InkPoint[][] {
 
 // Portrait page with a pronounced wavy bottom edge — both deliberate, so a
 // plain rectangle (landscape or portrait) stays clearly distinct in $Q space.
-function documentOutline(opts: StrokeOpts = {}): InkPoint[] {
+function documentOutline(opts: InkOpts = {}): InkPoint[] {
   const seed = opts.seed ?? 1
   const jitter = opts.jitter ?? 0
   const rand = seededRandom(seed + 9)
@@ -321,11 +322,11 @@ function documentOutline(opts: StrokeOpts = {}): InkPoint[] {
   ]
 }
 
-export function documentStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function documentInk(opts: InkOpts = {}): InkPoint[][] {
   return [documentOutline(opts)]
 }
 
-function gearOutline(opts: StrokeOpts = {}): InkPoint[] {
+function gearOutline(opts: InkOpts = {}): InkPoint[] {
   const seed = opts.seed ?? 1
   const jitter = opts.jitter ?? 0
   const rand = seededRandom(seed)
@@ -353,15 +354,15 @@ function gearOutline(opts: StrokeOpts = {}): InkPoint[] {
   return points
 }
 
-export function gearStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function gearInk(opts: InkOpts = {}): InkPoint[][] {
   return [gearOutline(opts)]
 }
 
-function smileyMouth(opts: StrokeOpts = {}): InkPoint[] {
+function smileyMouth(opts: InkOpts = {}): InkPoint[] {
   return arc(100, 90, 58, 58, 0.15 * Math.PI, 0.85 * Math.PI, { ...opts, n: 16 })
 }
 
-export function smileyStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function smileyInk(opts: InkOpts = {}): InkPoint[][] {
   const seed = opts.seed ?? 1
   return [
     arc(100, 100, 85, 85, -Math.PI / 2, (Math.PI * 3) / 2, { ...opts, seed, n: 40 }),
@@ -371,7 +372,7 @@ export function smileyStrokes(opts: StrokeOpts = {}): InkPoint[][] {
   ]
 }
 
-export function triangleStrokes(opts: StrokeOpts = {}): InkPoint[][] {
+export function triangleInk(opts: InkOpts = {}): InkPoint[][] {
   return [
     polyline(
       [{ x: 100, y: 25 }, { x: 180, y: 168 }, { x: 20, y: 168 }, { x: 100, y: 25 }],
@@ -385,8 +386,8 @@ export function triangleStrokes(opts: StrokeOpts = {}): InkPoint[][] {
 export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   {
     name: 'stick-figure',
-    minStrokes: 3,
-    examples: [stickFigureStrokes()],
+    minInkCount: 3,
+    examples: [stickFigureInk()],
     replacement: [
       { kind: 'geo', geo: 'ellipse', x: 78, y: 10, w: 44, h: 44 },
       { kind: 'line', points: [{ x: 100, y: 54 }, { x: 100, y: 128 }] },
@@ -397,25 +398,25 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   },
   {
     name: 'star',
-    examples: [starStrokes()],
+    examples: [starInk()],
     replacement: [{ kind: 'geo', geo: 'star', x: 0, y: 0, w: 100, h: 100 }],
   },
   {
     name: 'cloud',
-    examples: [cloudStrokes()],
+    examples: [cloudInk()],
     replacement: [{ kind: 'geo', geo: 'cloud', x: 0, y: 0, w: 100, h: 100 }],
   },
   {
     name: 'checkmark',
-    examples: [checkmarkStrokes()],
+    examples: [checkmarkInk()],
     replacement: [
       { kind: 'line', points: [{ x: 20, y: 110 }, { x: 78, y: 168 }, { x: 180, y: 32 }] },
     ],
   },
   {
     name: 'x',
-    minStrokes: 2,
-    examples: [xStrokes()],
+    minInkCount: 2,
+    examples: [xInk()],
     replacement: [
       { kind: 'line', points: [{ x: 30, y: 30 }, { x: 170, y: 170 }] },
       { kind: 'line', points: [{ x: 170, y: 30 }, { x: 30, y: 170 }] },
@@ -423,8 +424,8 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   },
   {
     name: 'question-mark',
-    minStrokes: 2,
-    examples: [questionMarkStrokes()],
+    minInkCount: 2,
+    examples: [questionMarkInk()],
     replacement: [
       { kind: 'draw', points: questionMarkHook() },
       { kind: 'geo', geo: 'ellipse', x: 94, y: 166, w: 12, h: 12, fill: 'solid' },
@@ -432,8 +433,8 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   },
   {
     name: 'exclamation-mark',
-    minStrokes: 2,
-    examples: [exclamationMarkStrokes()],
+    minInkCount: 2,
+    examples: [exclamationMarkInk()],
     replacement: [
       { kind: 'line', points: [{ x: 100, y: 24 }, { x: 100, y: 128 }] },
       { kind: 'geo', geo: 'ellipse', x: 94, y: 164, w: 12, h: 12, fill: 'solid' },
@@ -441,13 +442,13 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   },
   {
     name: 'heart',
-    examples: [heartStrokes()],
+    examples: [heartInk()],
     replacement: [{ kind: 'geo', geo: 'heart', x: 0, y: 0, w: 100, h: 100 }],
   },
   {
     name: 'lightbulb',
-    minStrokes: 2,
-    examples: [lightbulbStrokes()],
+    minInkCount: 2,
+    examples: [lightbulbInk()],
     replacement: [
       { kind: 'geo', geo: 'ellipse', x: 54, y: 32, w: 92, h: 92 },
       { kind: 'geo', geo: 'rectangle', x: 84, y: 128, w: 32, h: 24 },
@@ -455,7 +456,7 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   },
   {
     name: 'speech-bubble',
-    examples: [speechBubbleStrokes()],
+    examples: [speechBubbleInk()],
     replacement: [
       { kind: 'geo', geo: 'oval', x: 30, y: 20, w: 140, h: 90 },
       {
@@ -467,8 +468,8 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   },
   {
     name: 'cylinder',
-    minStrokes: 2,
-    examples: [cylinderStrokes()],
+    minInkCount: 2,
+    examples: [cylinderInk()],
     replacement: [
       { kind: 'geo', geo: 'ellipse', x: 38, y: 22, w: 124, h: 40 },
       { kind: 'draw', points: cylinderBody() },
@@ -480,12 +481,12 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
     // bottom, so it competes under a tighter bar: rough documents measure
     // ~0.5 while portrait rectangles measure ~1.5+ (see qdollar.test.ts).
     maxDistance: 1.0,
-    examples: [documentStrokes()],
+    examples: [documentInk()],
     replacement: [{ kind: 'draw', points: documentOutline(), closed: true }],
   },
   {
     name: 'gear',
-    examples: [gearStrokes()],
+    examples: [gearInk()],
     replacement: [
       { kind: 'draw', points: gearOutline(), closed: true },
       { kind: 'geo', geo: 'ellipse', x: 74, y: 74, w: 52, h: 52 },
@@ -493,8 +494,8 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   },
   {
     name: 'smiley',
-    minStrokes: 3,
-    examples: [smileyStrokes()],
+    minInkCount: 3,
+    examples: [smileyInk()],
     replacement: [
       { kind: 'geo', geo: 'ellipse', x: 15, y: 15, w: 170, h: 170 },
       { kind: 'geo', geo: 'ellipse', x: 62, y: 66, w: 12, h: 12, fill: 'solid' },
@@ -504,7 +505,7 @@ export const ILLUSTRATION_TEMPLATES: readonly IllustrationTemplate[] = [
   },
   {
     name: 'triangle',
-    examples: [triangleStrokes()],
+    examples: [triangleInk()],
     replacement: [{ kind: 'geo', geo: 'triangle', x: 0, y: 0, w: 100, h: 100 }],
   },
 ]
@@ -535,16 +536,16 @@ export function getIllustrationTemplate(name: string): IllustrationTemplate | un
   return ILLUSTRATION_TEMPLATES.find((t) => t.name === name)
 }
 
-// Match a group of Ink strokes against the library; null when nothing clears
-// the rejection bar. Templates whose minStrokes exceeds the candidate's
-// stroke count don't compete.
+// Match a group of Ink (an array of Ink point-arrays) against the library;
+// null when nothing clears the rejection bar. Templates whose minInkCount
+// exceeds the candidate's Ink count don't compete.
 export function recognizeIllustration(
-  strokes: readonly (readonly InkPoint[])[]
+  ink: readonly (readonly InkPoint[])[]
 ): IllustrationMatch | null {
-  const strokeCount = strokes.filter((s) => s.length > 0).length
-  const match = getRecognizer().recognize(strokes, (name) => {
+  const inkCount = ink.filter((s) => s.length > 0).length
+  const match = getRecognizer().recognize(ink, (name) => {
     const template = getIllustrationTemplate(name)
-    return (template?.minStrokes ?? 1) <= strokeCount
+    return (template?.minInkCount ?? 1) <= inkCount
   })
   if (match.name === null) return null
   const template = getIllustrationTemplate(match.name)
@@ -554,4 +555,18 @@ export function recognizeIllustration(
   const bar = Math.min(ILLUSTRATION_MAX_DISTANCE, template.maxDistance ?? Infinity)
   if (match.distance > bar) return null
   return { name: template.name, distance: match.distance, template }
+}
+
+// The programmatic path from captured JSON (__templateCapture.save) to a
+// registered template: parse the JSON and pass its name and "ink" array
+// here, and the captured drawing becomes an additional live example of the
+// named template — recognizeIllustration matches it immediately. Dev-mode
+// tooling; the durable path is pasting the ink into `examples` above.
+export function templateFromCapture(name: string, ink: InkPoint[][]): IllustrationTemplate {
+  const template = getIllustrationTemplate(name)
+  if (!template) throw new Error(`Unknown illustration template: ${name}`)
+  template.examples.push(ink)
+  // The lazy singleton recognizer may already be built; keep it in sync.
+  recognizer?.addTemplate(template.name, ink)
+  return template
 }

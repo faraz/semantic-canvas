@@ -13,7 +13,7 @@ import { makeTestEditor } from '../tldrawTestEditor'
 import type { InkPoint } from '../shapeSnap/recognize'
 import { zigzagScribble, roughRectangle } from '../shapeSnap/testInk'
 import { wireShapeSnap } from '../shapeSnap/wire'
-import { cloudStrokes, heartStrokes, stickFigureStrokes } from './templates'
+import { cloudInk, heartInk, stickFigureInk } from './templates'
 import { wireIllustrationSnap } from './wire'
 
 let strokeSeq = 0
@@ -59,7 +59,7 @@ describe('wireIllustrationSnap', () => {
     const editor = makeTestEditor()
     const counts = wireBoth(editor)
 
-    for (const stroke of stickFigureStrokes({ jitter: 3, seed: 12 })) {
+    for (const stroke of stickFigureInk({ jitter: 3, seed: 12 })) {
       completeInk(editor, stroke)
     }
 
@@ -106,7 +106,7 @@ describe('wireIllustrationSnap', () => {
     const editor = makeTestEditor()
     const counts = wireBoth(editor)
 
-    completeInk(editor, cloudStrokes({ jitter: 4, seed: 9 })[0])
+    completeInk(editor, cloudInk({ jitter: 4, seed: 9 })[0])
 
     // The moment-based recognizer eagerly reads a cloud as an ellipse...
     await wait(20)
@@ -163,8 +163,8 @@ describe('wireIllustrationSnap', () => {
     const editor = makeTestEditor()
     const counts = wireBoth(editor)
 
-    completeInk(editor, heartStrokes({ jitter: 3, seed: 4 })[0], { x: 0, y: 0 })
-    completeInk(editor, heartStrokes({ jitter: 3, seed: 8 })[0], { x: 1500, y: 1500 })
+    completeInk(editor, heartInk({ jitter: 3, seed: 4 })[0], { x: 0, y: 0 })
+    completeInk(editor, heartInk({ jitter: 3, seed: 8 })[0], { x: 1500, y: 1500 })
     await wait(120)
 
     const hearts = pageShapes(editor).filter(
@@ -178,7 +178,7 @@ describe('wireIllustrationSnap', () => {
     const editor = makeTestEditor()
     const counts = wireBoth(editor)
 
-    for (const stroke of stickFigureStrokes({ jitter: 2, seed: 3 })) {
+    for (const stroke of stickFigureInk({ jitter: 2, seed: 3 })) {
       completeInk(editor, stroke)
     }
     await wait(120)

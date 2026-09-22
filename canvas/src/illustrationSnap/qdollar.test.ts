@@ -3,23 +3,23 @@ import { QDollarRecognizer } from './qdollar'
 import {
   ILLUSTRATION_TEMPLATES,
   recognizeIllustration,
-  stickFigureStrokes,
-  starStrokes,
-  cloudStrokes,
-  checkmarkStrokes,
-  xStrokes,
-  questionMarkStrokes,
-  exclamationMarkStrokes,
-  heartStrokes,
-  lightbulbStrokes,
-  speechBubbleStrokes,
-  cylinderStrokes,
-  documentStrokes,
-  gearStrokes,
-  smileyStrokes,
-  triangleStrokes,
+  stickFigureInk,
+  starInk,
+  cloudInk,
+  checkmarkInk,
+  xInk,
+  questionMarkInk,
+  exclamationMarkInk,
+  heartInk,
+  lightbulbInk,
+  speechBubbleInk,
+  cylinderInk,
+  documentInk,
+  gearInk,
+  smileyInk,
+  triangleInk,
   type IllustrationName,
-  type StrokeOpts,
+  type InkOpts,
 } from './templates'
 import type { InkPoint } from '../shapeSnap/recognize'
 import {
@@ -32,22 +32,22 @@ import {
   zigzagScribble,
 } from '../shapeSnap/testInk'
 
-const generators: Record<IllustrationName, (opts: StrokeOpts) => InkPoint[][]> = {
-  'stick-figure': stickFigureStrokes,
-  star: starStrokes,
-  cloud: cloudStrokes,
-  checkmark: checkmarkStrokes,
-  x: xStrokes,
-  'question-mark': questionMarkStrokes,
-  'exclamation-mark': exclamationMarkStrokes,
-  heart: heartStrokes,
-  lightbulb: lightbulbStrokes,
-  'speech-bubble': speechBubbleStrokes,
-  cylinder: cylinderStrokes,
-  document: documentStrokes,
-  gear: gearStrokes,
-  smiley: smileyStrokes,
-  triangle: triangleStrokes,
+const generators: Record<IllustrationName, (opts: InkOpts) => InkPoint[][]> = {
+  'stick-figure': stickFigureInk,
+  star: starInk,
+  cloud: cloudInk,
+  checkmark: checkmarkInk,
+  x: xInk,
+  'question-mark': questionMarkInk,
+  'exclamation-mark': exclamationMarkInk,
+  heart: heartInk,
+  lightbulb: lightbulbInk,
+  'speech-bubble': speechBubbleInk,
+  cylinder: cylinderInk,
+  document: documentInk,
+  gear: gearInk,
+  smiley: smileyInk,
+  triangle: triangleInk,
 }
 
 describe('recognizeIllustration positives', () => {
@@ -69,7 +69,7 @@ describe('recognizeIllustration positives', () => {
   }
 
   it('is stroke-order and direction agnostic (point cloud)', () => {
-    const strokes = stickFigureStrokes({ jitter: 3, seed: 5 })
+    const strokes = stickFigureInk({ jitter: 3, seed: 5 })
     const scrambled = [...strokes].reverse().map((stroke) => [...stroke].reverse())
     expect(recognizeIllustration(scrambled)?.name).toBe('stick-figure')
   })
@@ -124,7 +124,7 @@ describe('QDollarRecognizer degenerates', () => {
   it('never throws, with and without templates', () => {
     const empty = new QDollarRecognizer()
     const loaded = new QDollarRecognizer()
-    loaded.addTemplate('x', xStrokes())
+    loaded.addTemplate('x', xInk())
     loaded.addTemplate('degenerate-template', [[{ x: 1, y: 1 }]])
     for (const [, strokes] of degenerates) {
       expect(() => empty.recognize(strokes)).not.toThrow()
@@ -135,15 +135,15 @@ describe('QDollarRecognizer degenerates', () => {
 
   it('returns no name when there is nothing to match', () => {
     const recognizer = new QDollarRecognizer()
-    expect(recognizer.recognize([xStrokes()[0]]).name).toBeNull()
-    recognizer.addTemplate('x', xStrokes())
+    expect(recognizer.recognize([xInk()[0]]).name).toBeNull()
+    recognizer.addTemplate('x', xInk())
     expect(recognizer.recognize([]).name).toBeNull()
   })
 
   it('matches an exact template at distance 0', () => {
     const recognizer = new QDollarRecognizer()
-    recognizer.addTemplate('star', starStrokes())
-    const match = recognizer.recognize(starStrokes())
+    recognizer.addTemplate('star', starInk())
+    const match = recognizer.recognize(starInk())
     expect(match.name).toBe('star')
     expect(match.distance).toBeCloseTo(0, 5)
     expect(match.score).toBe(1)

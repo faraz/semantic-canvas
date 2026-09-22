@@ -1,9 +1,22 @@
 // @vitest-environment jsdom
 import '../tldrawTestShims'
 import { describe, expect, it } from 'vitest'
-import { createShapeId, type Editor, type TLArrowShape, type TLGeoShape } from 'tldraw'
+import {
+  createShapeId,
+  type Editor,
+  type TLArrowShape,
+  type TLGeoShape,
+  type TLLineShape,
+} from 'tldraw'
 import { b64Vecs } from '@tldraw/tlschema'
-import { roughArrow, roughEllipse, roughRectangle, zigzagScribble } from './testInk'
+import {
+  roughArrow,
+  roughDiamond,
+  roughEllipse,
+  roughRectangle,
+  straightLine,
+  zigzagScribble,
+} from './testInk'
 import type { InkPoint } from './recognize'
 import { wireShapeSnap } from './wire'
 import { makeTestEditor } from '../tldrawTestEditor'
@@ -98,6 +111,52 @@ describe('wireShapeSnap', () => {
     expect(Math.hypot(arrow.props.end.x - 240, arrow.props.end.y - 0)).toBeLessThan(30)
   })
 
+  it('swaps a straight open Ink stroke for a line with the drawn endpoints', async () => {
+    const editor = makeTestEditor()
+    wireShapeSnap(editor)
+
+    const id = completeInk(
+      editor,
+      straightLine({ x1: 60, y1: 80, x2: 280, y2: 190, jitter: 2, seed: 7 })
+    )
+    await flushSnap()
+
+    expect(editor.getShape(id)).toBeUndefined()
+    const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
+    expect(shapes).toHaveLength(1)
+    const line = shapes[0] as TLLineShape
+    expect(line.type).toBe('line')
+    // Origin anchors at the drawn start (offset by the Ink's position)...
+    expect(line.x).toBeCloseTo(10 + 60, -1)
+    expect(line.y).toBeCloseTo(20 + 80, -1)
+    // ...with the two endpoints shape-relative: a1 at the origin, a2 at the
+    // drawn end.
+    expect(line.props.points.a1.x).toBe(0)
+    expect(line.props.points.a1.y).toBe(0)
+    expect(line.props.points.a2.x).toBeCloseTo(280 - 60, -1)
+    expect(line.props.points.a2.y).toBeCloseTo(190 - 80, -1)
+  })
+
+  it('swaps a corner-drawn box for a geo diamond', async () => {
+    const editor = makeTestEditor()
+    wireShapeSnap(editor)
+
+    const id = completeInk(
+      editor,
+      roughDiamond({ x: 100, y: 100, w: 180, h: 180, jitter: 3, seed: 3 })
+    )
+    await flushSnap()
+
+    expect(editor.getShape(id)).toBeUndefined()
+    const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
+    expect(shapes).toHaveLength(1)
+    const geo = shapes[0] as TLGeoShape
+    expect(geo.type).toBe('geo')
+    expect(geo.props.geo).toBe('diamond')
+    expect(geo.x).toBeCloseTo(10 + 100, -1)
+    expect(geo.y).toBeCloseTo(20 + 100, -1)
+  })
+
   it('one undo restores the original Ink stroke', async () => {
     const editor = makeTestEditor()
     wireShapeSnap(editor)
@@ -132,6 +191,42 @@ describe('wireShapeSnap', () => {
     expect(editor.getShape(id)).toBeDefined()
     const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
     expect(shapes.filter((s) => s.type === 'arrow')).toHaveLength(0)
+  })
+
+  it('one undo restores the original Ink stroke after a line snap', async () => {
+    const editor = makeTestEditor()
+    wireShapeSnap(editor)
+
+    const id = completeInk(
+      editor,
+      straightLine({ x1: 40, y1: 300, x2: 260, y2: 90, jitter: 2, seed: 11 })
+    )
+    await flushSnap()
+    expect(editor.getShape(id)).toBeUndefined()
+
+    editor.undo()
+
+    expect(editor.getShape(id)).toBeDefined()
+    const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
+    expect(shapes.filter((s) => s.type === 'line')).toHaveLength(0)
+  })
+
+  it('one undo restores the original Ink stroke after a diamond snap', async () => {
+    const editor = makeTestEditor()
+    wireShapeSnap(editor)
+
+    const id = completeInk(
+      editor,
+      roughDiamond({ x: 50, y: 60, w: 200, h: 160, jitter: 3, seed: 8 })
+    )
+    await flushSnap()
+    expect(editor.getShape(id)).toBeUndefined()
+
+    editor.undo()
+
+    expect(editor.getShape(id)).toBeDefined()
+    const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
+    expect(shapes.filter((s) => s.type === 'geo')).toHaveLength(0)
   })
 
   it('leaves a scribble as Ink', async () => {
