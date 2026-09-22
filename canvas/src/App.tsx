@@ -19,6 +19,7 @@ import { wireInkCapture } from './shapeSnap/capture'
 import { wireIllustrationSnap } from './illustrationSnap/wire'
 import { wireTemplateCapture } from './illustrationSnap/capture'
 import { QuickActions, SnapToggleMenuItem } from './snapToggle'
+import { VariantBar, useChromeVariant } from './ui/variants/switcher'
 
 function MainMenu() {
   const editor = useEditor()
@@ -63,12 +64,24 @@ function mount(editor: Editor) {
 }
 
 export function App() {
+  // PROTOTYPE (issue #19): chrome design bake-off. The variant bar swaps the
+  // Toolbar/StylePanel overrides and scopes the variant's CSS via a root
+  // class; 'current' is the shipped chrome. Tldraw is keyed by variant so
+  // each design mounts clean (the Board persists via persistenceKey).
+  const [variant, pickVariant] = useChromeVariant()
   return (
-    <Tldraw
-      persistenceKey="semantic-canvas-board"
-      assetUrls={assetUrls}
-      components={components}
-      onMount={mount}
-    />
+    <div
+      className={`variant-${variant.slug}`}
+      style={{ position: 'fixed', inset: 0 }}
+    >
+      <Tldraw
+        key={variant.slug}
+        persistenceKey="semantic-canvas-board"
+        assetUrls={assetUrls}
+        components={{ ...components, ...variant.components }}
+        onMount={mount}
+      />
+      <VariantBar active={variant.slug} onPick={pickVariant} />
+    </div>
   )
 }

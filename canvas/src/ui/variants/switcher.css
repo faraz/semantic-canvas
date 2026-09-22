@@ -1,0 +1,30 @@
+/* PROTOTYPE — the bake-off variant bar. Bottom-left, out of every variant's
+   chrome lanes (toolbar bottom-center, tray right edge, panels top). */
+.variant-bar {
+  position: fixed;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 99999;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.variant-bar__pill {
+  appearance: none;
+  border: none;
+  padding: 0 14px;
+  height: 40px;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font: 600 12px -apple-system, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
+.variant-bar__pill--active {
+  background: #fff;
+  color: #141418;
+}

@@ -1,0 +1,464 @@
+/*
+ * Tactile Toy — dimensional keycap chrome, pure CSS.
+ *
+ * Physics of the world: one light source, top-center. Every raised surface
+ * gets a white bevel on its top edge, a saturated rim on its bottom edge,
+ * and a soft offset drop shadow below. Tool keys pop OUT (raised caps that
+ * depress on press and grow 6% when latched); style-panel toggles latch IN
+ * (pressed sockets). Motion is transform/opacity only, 70–220ms, springy.
+ *
+ * Every selector is scoped under .variant-tactile-toy. Overrides of tldraw's
+ * .tlui-* classes are shallow (scope + one stable class + state), so a
+ * tldraw upgrade degrades to "less toylike", never "broken".
+ * Touch targets: toolbar keys 56px, tray/style/menu-zone keys >=48px,
+ * menu rows 44px — all at or above the 44pt iOS floor.
+ */
+
+/* ---- Material + motion tokens ----------------------------------------- */
+
+.variant-tactile-toy {
+  /* Springy pop with slight overshoot; fast press, slower release. */
+  --ttoy-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ttoy-fast: 160ms;
+  --ttoy-slow: 220ms;
+
+  /* Warm bone-white material, dark-cocoa ink. */
+  --ttoy-ink: #453c33;
+  --ttoy-plinth-hi: #fdfaf3;
+  --ttoy-plinth-lo: #ece4d3;
+  --ttoy-plinth-edge: rgba(112, 92, 62, 0.28);
+  --ttoy-shadow: rgba(88, 68, 40, 0.32);
+
+  /* Neutral (idle) keycap. */
+  --ttoy-cap-hi: #fffefb;
+  --ttoy-cap-lo: #f0e9db;
+  --ttoy-cap-rim: #d8cdb7;
+
+  /* Per-key family accent (defaults are overridden by data-value below). */
+  --ttoy-accent-hi: #ffe08a;
+  --ttoy-accent-lo: #f2bb42;
+  --ttoy-accent-rim: #c98f13;
+  --ttoy-accent-ink: #4f3a06;
+}
+
+/* Dark room fallback (screen-shared meetings are light-first, but the
+   material survives tldraw's dark theme wherever the class lands). */
+.variant-tactile-toy.tl-theme__dark,
+.variant-tactile-toy .tl-theme__dark,
+.tl-theme__dark .variant-tactile-toy {
+  --ttoy-ink: #ece5da;
+  --ttoy-plinth-hi: #45403a;
+  --ttoy-plinth-lo: #332f2a;
+  --ttoy-plinth-edge: rgba(0, 0, 0, 0.55);
+  --ttoy-shadow: rgba(0, 0, 0, 0.55);
+  --ttoy-cap-hi: #55504a;
+  --ttoy-cap-lo: #3d3934;
+  --ttoy-cap-rim: #26231f;
+}
+
+/* Warm selection + caret so even text fields belong to the toy world. */
+.variant-tactile-toy ::selection {
+  background: rgba(242, 187, 66, 0.45);
+}
+.variant-tactile-toy input,
+.variant-tactile-toy textarea {
+  caret-color: #f2761f;
+}
+
+/* ---- Toolbar plinth (bottom center) ----------------------------------- */
+
+/* The tray the keys sit in: a molded plastic plinth, top-lit. */
+.variant-tactile-toy .tlui-main-toolbar__tools {
+  padding: 6px 8px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, var(--ttoy-plinth-hi), var(--ttoy-plinth-lo));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),   /* top bevel catches the light */
+    inset 0 -2px 0 var(--ttoy-plinth-edge),      /* molded bottom lip */
+    0 3px 0 rgba(255, 255, 255, 0.28),
+    0 10px 22px -8px var(--ttoy-shadow),         /* offset + blur: real depth */
+    0 2px 4px rgba(88, 68, 40, 0.14);
+}
+
+/* ---- Keycaps: every button in the main toolbar ------------------------- */
+
+/* The button is the finger target (56px); the cap face is its ::after
+   (tldraw's hover layer, promoted to a permanent surface). Icons stay above
+   the cap via tldraw's own `.tlui-button > *` stacking. */
+.variant-tactile-toy .tlui-main-toolbar .tlui-button {
+  height: 56px;
+  min-width: 56px;
+  color: var(--ttoy-ink);
+  transition: transform var(--ttoy-fast) var(--ttoy-spring);
+}
+
+.variant-tactile-toy .tlui-main-toolbar .tlui-icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Cap face: gloss gradient + bevel/rim/drop shadows. */
+.variant-tactile-toy .tlui-main-toolbar .tlui-button::after {
+  opacity: 1;
+  inset: 4px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 48%),
+    linear-gradient(180deg, var(--ttoy-cap-hi), var(--ttoy-cap-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 0 var(--ttoy-cap-rim),
+    0 2px 0 var(--ttoy-cap-rim),
+    0 4px 7px -2px var(--ttoy-shadow);
+}
+
+/* Hover enhances, never gates: a 1px float on pointer hardware only. */
+@media (hover: hover) {
+  .variant-tactile-toy .tlui-main-toolbar .tlui-button:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Press: the key depresses fast (70ms in, springy release inherits 160ms).
+   Shadow compresses instantly — only transform is animated. */
+.variant-tactile-toy .tlui-main-toolbar .tlui-button:not(:disabled):active {
+  transform: translateY(2px) scale(0.96);
+  transition-duration: 70ms;
+  transition-timing-function: ease-out;
+}
+.variant-tactile-toy .tlui-main-toolbar .tlui-button:not(:disabled):active::after {
+  box-shadow:
+    inset 0 2px 3px rgba(88, 68, 40, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.5),
+    0 1px 0 var(--ttoy-cap-rim);
+}
+
+/* Latched (active tool): cap takes the family color and grows 6%.
+   The glyph stays stamped ink — deep family ink, high contrast on camera. */
+.variant-tactile-toy .tlui-main-toolbar .tlui-button[aria-pressed='true'] {
+  color: var(--ttoy-accent-ink);
+  transform: translateY(-1px) scale(1.06);
+  transition-duration: var(--ttoy-slow);
+}
+.variant-tactile-toy .tlui-main-toolbar .tlui-button[aria-pressed='true']::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 46%),
+    linear-gradient(180deg, var(--ttoy-accent-hi), var(--ttoy-accent-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -2px 0 var(--ttoy-accent-rim),
+    0 2px 0 var(--ttoy-accent-rim),
+    0 6px 10px -3px var(--ttoy-shadow);
+}
+/* Pressing an already-latched key still depresses it. */
+.variant-tactile-toy
+  .tlui-main-toolbar
+  .tlui-button[aria-pressed='true']:not(:disabled):active {
+  transform: translateY(1px) scale(1.01);
+}
+
+/* Disabled keys sit flat in the tray. */
+.variant-tactile-toy .tlui-main-toolbar .tlui-button:disabled::after {
+  opacity: 0.55;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 0 var(--ttoy-cap-rim);
+}
+
+/* ---- Tool families: warm marks, cool shapes, muted-red destructive ----- */
+
+/* Mark-making (draw, text): coral. */
+.variant-tactile-toy .tlui-main-toolbar [data-value='draw'],
+.variant-tactile-toy .tlui-main-toolbar [data-value='text'] {
+  --ttoy-accent-hi: #ffa768;
+  --ttoy-accent-lo: #ef7c30;
+  --ttoy-accent-rim: #c55b12;
+  --ttoy-accent-ink: #59260a;
+}
+
+/* Select: butter yellow. */
+.variant-tactile-toy .tlui-main-toolbar [data-value='select'] {
+  --ttoy-accent-hi: #ffd970;
+  --ttoy-accent-lo: #f0b73a;
+  --ttoy-accent-rim: #c28d12;
+  --ttoy-accent-ink: #533d08;
+}
+
+/* Eraser: muted clay red (destructive, deliberately quieter). */
+.variant-tactile-toy .tlui-main-toolbar [data-value='eraser'] {
+  --ttoy-accent-hi: #f5a08c;
+  --ttoy-accent-lo: #dd6f5c;
+  --ttoy-accent-rim: #b04c3c;
+  --ttoy-accent-ink: #571f14;
+}
+
+/* Geo shapes + the tray key: sky blue. */
+.variant-tactile-toy .tlui-main-toolbar [data-value='rectangle'],
+.variant-tactile-toy .tlui-main-toolbar [data-value='ellipse'],
+.variant-tactile-toy .tlui-main-toolbar [data-value='diamond'],
+.variant-tactile-toy .tlui-main-toolbar [data-value='shape-tray'] {
+  --ttoy-accent-hi: #90c8ff;
+  --ttoy-accent-lo: #5b9fea;
+  --ttoy-accent-rim: #3a77bf;
+  --ttoy-accent-ink: #113a68;
+}
+
+/* Connectors (arrow, line): teal — cool family, second hue. */
+.variant-tactile-toy .tlui-main-toolbar [data-value='arrow'],
+.variant-tactile-toy .tlui-main-toolbar [data-value='line'] {
+  --ttoy-accent-hi: #7fd6c9;
+  --ttoy-accent-lo: #47ab9c;
+  --ttoy-accent-rim: #2f8578;
+  --ttoy-accent-ink: #0d3f38;
+}
+
+/* Cluster seams: marks | shapes+tray | text. */
+.variant-tactile-toy .tlui-main-toolbar [data-value='eraser'] {
+  margin-inline-end: 10px;
+}
+.variant-tactile-toy .tlui-main-toolbar [data-value='text'] {
+  margin-inline-start: 10px;
+}
+
+/* ---- Shape tray (spring-out popover) ----------------------------------- */
+
+/* Trigger while the tray is open: floats, waiting. */
+.variant-tactile-toy .tlui-main-toolbar .ttoy-tray-trigger[data-state='open'] {
+  transform: translateY(-2px);
+}
+
+.variant-tactile-toy .ttoy-tray-glyph {
+  width: 24px;
+  height: 24px;
+}
+
+/* Tray grid: 6 columns of shape keys (17 shapes -> 6/6/5 rows).
+   Resets tldraw's 4-col .tlui-grid default and its -2px child margins. */
+.variant-tactile-toy .ttoy-tray-grid {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  padding: 10px;
+  overflow: visible;
+}
+.variant-tactile-toy .ttoy-tray-grid > * {
+  margin: 0;
+}
+
+/* Shape keys in the tray: same keycap physics at 52px, sky family. */
+.variant-tactile-toy .ttoy-tray-grid .tlui-button {
+  height: 52px;
+  min-width: 52px;
+  color: var(--ttoy-ink);
+  transition: transform var(--ttoy-fast) var(--ttoy-spring);
+  --ttoy-accent-hi: #90c8ff;
+  --ttoy-accent-lo: #5b9fea;
+  --ttoy-accent-rim: #3a77bf;
+  --ttoy-accent-ink: #113a68;
+}
+.variant-tactile-toy .ttoy-tray-grid .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+.variant-tactile-toy .ttoy-tray-grid .tlui-button::after {
+  opacity: 1;
+  inset: 3px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 48%),
+    linear-gradient(180deg, var(--ttoy-cap-hi), var(--ttoy-cap-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 0 var(--ttoy-cap-rim),
+    0 2px 0 var(--ttoy-cap-rim),
+    0 3px 6px -2px var(--ttoy-shadow);
+}
+.variant-tactile-toy .ttoy-tray-grid .tlui-button:not(:disabled):active {
+  transform: translateY(2px) scale(0.95);
+  transition-duration: 70ms;
+  transition-timing-function: ease-out;
+}
+.variant-tactile-toy .ttoy-tray-grid .tlui-button[aria-pressed='true'] {
+  color: var(--ttoy-accent-ink);
+}
+.variant-tactile-toy .ttoy-tray-grid .tlui-button[aria-pressed='true']::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 46%),
+    linear-gradient(180deg, var(--ttoy-accent-hi), var(--ttoy-accent-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -2px 0 var(--ttoy-accent-rim),
+    0 2px 0 var(--ttoy-accent-rim),
+    0 4px 8px -3px var(--ttoy-shadow);
+}
+
+/* ---- Popovers (shape tray, style pickers, actions grid) ---------------- */
+
+/* Shared plinth material + one authored spring-pop entrance. */
+.variant-tactile-toy .tlui-popover__content {
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--ttoy-plinth-hi), var(--ttoy-plinth-lo));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 0 var(--ttoy-plinth-edge),
+    0 12px 26px -10px var(--ttoy-shadow),
+    0 3px 6px rgba(88, 68, 40, 0.16);
+  transform-origin: var(--radix-popover-content-transform-origin);
+  animation: ttoy-pop var(--ttoy-slow) var(--ttoy-spring);
+}
+
+/* Pop-out pickers keep >=48px targets. */
+.variant-tactile-toy .tlui-popover__content .tlui-button {
+  height: 48px;
+  min-width: 48px;
+}
+
+@keyframes ttoy-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.86) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ---- Style panel (top right): latch-IN toggle keys ---------------------- */
+
+/* Panel shell: same molded plinth as the toolbar. */
+.variant-tactile-toy .tlui-style-panel__wrapper {
+  border-radius: 18px;
+  margin: 10px;
+  background: linear-gradient(180deg, var(--ttoy-plinth-hi), var(--ttoy-plinth-lo));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 0 var(--ttoy-plinth-edge),
+    0 10px 22px -8px var(--ttoy-shadow),
+    0 2px 4px rgba(88, 68, 40, 0.14);
+}
+
+/* Wide enough for four 48px keys per row at arm's length. */
+.variant-tactile-toy .tlui-style-panel {
+  width: 224px;
+  max-width: 224px;
+  color: var(--ttoy-ink);
+}
+
+/* Controls: 48px keys. Inverse physics — style toggles press IN when on,
+   so "which options are set" reads as depressed sockets on camera. */
+.variant-tactile-toy .tlui-style-panel .tlui-button {
+  height: 48px;
+  min-width: 48px;
+  transition: transform var(--ttoy-fast) var(--ttoy-spring);
+}
+.variant-tactile-toy .tlui-style-panel .tlui-toolbar-toggle-group-item {
+  width: 48px;
+}
+.variant-tactile-toy .tlui-style-panel .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+.variant-tactile-toy .tlui-style-panel .tlui-button:not(:disabled):active {
+  transform: scale(0.94);
+  transition-duration: 70ms;
+}
+
+/* Latched-in socket: soft sky wash + inner shadow (covers tldraw's active
+   markers: data-isactive, radix toggle data-state, aria-checked). */
+.variant-tactile-toy .tlui-style-panel .tlui-button[data-isactive='true']::after,
+.variant-tactile-toy .tlui-style-panel .tlui-button[data-state='on']::after,
+.variant-tactile-toy .tlui-style-panel .tlui-button[aria-checked='true']::after {
+  opacity: 1;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(91, 159, 234, 0.28), rgba(91, 159, 234, 0.16));
+  box-shadow:
+    inset 0 2px 3px rgba(58, 92, 138, 0.35),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.65);
+}
+
+/* Opacity slider thumb becomes a little keycap knob. */
+.variant-tactile-toy .tlui-slider__thumb {
+  background: linear-gradient(180deg, var(--ttoy-cap-hi), var(--ttoy-cap-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1.5px 0 var(--ttoy-cap-rim),
+    0 2px 4px -1px var(--ttoy-shadow);
+}
+
+/* ---- Menu zone (top left: menu trigger + undo/redo) -------------------- */
+
+/* Detach tldraw's screen-corner border trick into a floating chip. */
+.variant-tactile-toy .tlui-menu-zone {
+  border: none;
+  margin: 10px;
+  padding: 4px 6px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--ttoy-plinth-hi), var(--ttoy-plinth-lo));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 0 var(--ttoy-plinth-edge),
+    0 8px 18px -8px var(--ttoy-shadow),
+    0 2px 4px rgba(88, 68, 40, 0.14);
+}
+
+/* Its buttons are neutral keycaps at 48px with the same press physics. */
+.variant-tactile-toy .tlui-menu-zone .tlui-button {
+  height: 48px;
+  min-width: 48px;
+  color: var(--ttoy-ink);
+  transition: transform var(--ttoy-fast) var(--ttoy-spring);
+}
+.variant-tactile-toy .tlui-menu-zone .tlui-button::after {
+  opacity: 1;
+  inset: 4px;
+  border-radius: 11px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 48%),
+    linear-gradient(180deg, var(--ttoy-cap-hi), var(--ttoy-cap-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1.5px 0 var(--ttoy-cap-rim),
+    0 1.5px 0 var(--ttoy-cap-rim),
+    0 3px 5px -2px var(--ttoy-shadow);
+}
+.variant-tactile-toy .tlui-menu-zone .tlui-button:not(:disabled):active {
+  transform: translateY(1.5px) scale(0.95);
+  transition-duration: 70ms;
+}
+.variant-tactile-toy .tlui-menu-zone .tlui-button:disabled::after {
+  opacity: 0.45;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ---- Menus (main menu dropdown, submenus, context menu) ---------------- */
+
+.variant-tactile-toy .tlui-menu {
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--ttoy-plinth-hi), var(--ttoy-plinth-lo));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 0 var(--ttoy-plinth-edge),
+    0 12px 26px -10px var(--ttoy-shadow);
+}
+.variant-tactile-toy .tlui-menu .tlui-button {
+  height: 44px;
+  color: var(--ttoy-ink);
+}
+
+/* ---- Reduced motion: states persist, movement stops -------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .variant-tactile-toy .tlui-button,
+  .variant-tactile-toy .tlui-main-toolbar .tlui-button,
+  .variant-tactile-toy .ttoy-tray-grid .tlui-button,
+  .variant-tactile-toy .tlui-style-panel .tlui-button,
+  .variant-tactile-toy .tlui-menu-zone .tlui-button {
+    transition: none;
+  }
+  .variant-tactile-toy .tlui-popover__content {
+    animation: none;
+  }
+  /* Depth states remain (they carry meaning); only the growth/lift motion
+     that would animate is neutralized. */
+  .variant-tactile-toy .tlui-main-toolbar .tlui-button[aria-pressed='true'] {
+    transform: none;
+  }
+}

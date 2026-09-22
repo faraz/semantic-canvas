@@ -1,0 +1,342 @@
+/*
+ * Quiet Studio — restrained, editorial chrome over the live canvas.
+ *
+ * Monochrome ink on frosted paper; one clay accent; depth from translucency
+ * and soft offset shadows, never borders. Loaded after tldraw.css and
+ * tablet.css; every selector is scoped under .variant-quiet-studio (the app
+ * root class when this variant is active) and kept shallow so a tldraw
+ * upgrade degrades gracefully.
+ */
+
+/* ---- Tokens ----------------------------------------------------------- */
+
+/* Variant-private tokens; motion is shared by both themes. */
+.variant-quiet-studio {
+  --qs-quick: 120ms;
+  --qs-calm: 160ms;
+  --qs-ease: cubic-bezier(0.2, 0, 0, 1); /* damped ease-out, no overshoot */
+}
+
+/* Light theme: warm paper glass, near-black ink, clay accent. Overriding
+   tldraw's own vars here (same element as tldraw's .tl-theme__light, higher
+   specificity) re-themes every panel, menu, and active state at once. */
+.variant-quiet-studio .tl-theme__light {
+  --qs-ink: hsl(240, 7%, 11%);
+  --qs-ink-soft: hsla(240, 7%, 11%, 0.76); /* idle glyphs: quiet, still ~10:1 */
+  --qs-caption: hsl(240, 5%, 38%); /* captions: 6.7:1 on the paper glass */
+  --qs-hairline: hsla(240, 7%, 11%, 0.08);
+  --qs-accent: hsl(21, 60%, 46%); /* clay — the single accent */
+  --tl-color-panel: hsla(40, 25%, 99%, 0.85); /* glass; blur added below */
+  --tl-color-selected: var(--qs-ink); /* active tool pill = ink, not blue */
+  --tl-color-selected-contrast: hsl(40, 25%, 98%);
+  --tl-color-divider: var(--qs-hairline);
+  --tl-color-hint: hsla(240, 7%, 11%, 0.07);
+  --tl-color-muted-2: hsla(240, 7%, 11%, 0.05); /* softer hover wash */
+  --tl-radius-3: 16px; /* menus, popovers */
+  --tl-radius-4: 22px; /* the dock pill */
+  /* Soft offset shadows with a 1px top light — the glass edge without a border. */
+  --tl-shadow-2: inset 0 1px 0 hsla(0, 0%, 100%, 0.55),
+    0 1px 2px hsla(240, 7%, 11%, 0.05), 0 12px 36px hsla(240, 7%, 11%, 0.1);
+  --tl-shadow-3: inset 0 1px 0 hsla(0, 0%, 100%, 0.55),
+    0 2px 6px hsla(240, 7%, 11%, 0.06), 0 18px 48px hsla(240, 7%, 11%, 0.14);
+}
+
+/* Dark theme: graphite glass, paper ink, the same clay warmed one step. */
+.variant-quiet-studio .tl-theme__dark {
+  --qs-ink: hsl(40, 12%, 94%);
+  --qs-ink-soft: hsla(40, 12%, 94%, 0.72);
+  --qs-caption: hsl(40, 6%, 68%);
+  --qs-hairline: hsla(0, 0%, 100%, 0.1);
+  --qs-accent: hsl(24, 58%, 63%);
+  --tl-color-panel: hsla(240, 6%, 12%, 0.82);
+  --tl-color-selected: var(--qs-ink);
+  --tl-color-selected-contrast: hsl(240, 6%, 10%);
+  --tl-color-divider: var(--qs-hairline);
+  --tl-color-hint: hsla(0, 0%, 100%, 0.08);
+  --tl-color-muted-2: hsla(0, 0%, 100%, 0.06);
+  --tl-radius-3: 16px;
+  --tl-radius-4: 22px;
+  --tl-shadow-2: inset 0 1px 0 hsla(0, 0%, 100%, 0.07),
+    0 1px 2px hsla(0, 0%, 0%, 0.25), 0 12px 36px hsla(0, 0%, 0%, 0.45);
+  --tl-shadow-3: inset 0 1px 0 hsla(0, 0%, 100%, 0.07),
+    0 2px 6px hsla(0, 0%, 0%, 0.3), 0 18px 48px hsla(0, 0%, 0%, 0.55);
+}
+
+/* ---- Voice ------------------------------------------------------------ */
+
+/* One family for all chrome text: SF Pro on the iPad (menus and popovers
+   portal outside .tlui-layout, so they are named here too). */
+.variant-quiet-studio .tlui-layout,
+.variant-quiet-studio .tlui-menu,
+.variant-quiet-studio .tlui-popover__content,
+.variant-quiet-studio .tlui-dialog__content {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+    'Helvetica Neue', system-ui, sans-serif;
+}
+
+/* Menu rows and labels one optical step up for arm's-length reading. */
+.variant-quiet-studio .tlui-button__label {
+  font-size: 13px;
+}
+
+/* ---- Frosted surfaces ------------------------------------------------- */
+
+/* The one glass recipe, applied to every floating surface. The blur is what
+   separates chrome from live ink beneath it on camera. */
+.variant-quiet-studio .tlui-main-toolbar__tools,
+.variant-quiet-studio .qs-shape-tray,
+.variant-quiet-studio .tlui-style-panel__wrapper,
+.variant-quiet-studio .tlui-menu-zone,
+.variant-quiet-studio .tlui-menu,
+.variant-quiet-studio .tlui-popover__content,
+.variant-quiet-studio .tlui-dialog__content {
+  background-color: var(--tl-color-panel);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+}
+
+/* ---- Dock (bottom center) --------------------------------------------- */
+
+/* Wrapper the variant's Toolbar renders: shelf above, dock below. It must
+   not swallow canvas input — the surfaces inside re-enable pointer events. */
+.variant-quiet-studio .qs-dock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* The dock pill: breathing room around the tools (radius/shadow/background
+   arrive via the token overrides above). */
+.variant-quiet-studio .tlui-main-toolbar__tools {
+  padding: 6px;
+}
+
+/* tldraw packs tool buttons edge-to-edge with negative margins; open that
+   up to a measured 4px rhythm inside the pill. */
+.variant-quiet-studio .tlui-main-toolbar__tools .tlui-row {
+  padding: 0;
+  gap: 4px;
+}
+
+/* Companion reset for the negative item margins the rule above replaces. */
+.variant-quiet-studio .tlui-main-toolbar__tools .tlui-row > * {
+  margin: 0;
+}
+
+/* Idle tools sit back at 76% ink; the pressed pill supplies full contrast. */
+.variant-quiet-studio .tlui-main-toolbar .tlui-button__tool:not([aria-pressed='true']) {
+  color: var(--qs-ink-soft);
+}
+
+/* Hairline pauses between the dock's three groups — rhythm, not borders. */
+.variant-quiet-studio .qs-dock-rule {
+  align-self: center;
+  flex-shrink: 0;
+  width: 1px;
+  height: 24px;
+  margin: 0 8px;
+  background: var(--qs-hairline);
+}
+
+/* Hover/press wash on every chrome button: one soft rounded inset, faded
+   in on the damped curve. */
+.variant-quiet-studio .tlui-button::after {
+  inset: 5px;
+  border-radius: 13px;
+  transition: opacity var(--qs-quick) var(--qs-ease),
+    background-color var(--qs-quick) var(--qs-ease);
+}
+
+/* Press feedback: the glyph settles, quickly and without bounce. */
+.variant-quiet-studio .tlui-main-toolbar .tlui-icon,
+.variant-quiet-studio .qs-shape-tray .tlui-icon {
+  transition: transform 100ms var(--qs-ease);
+}
+
+/* Companion to the rule above — applies the settle while pressed. */
+.variant-quiet-studio .tlui-main-toolbar .tlui-button:active .tlui-icon,
+.variant-quiet-studio .qs-shape-tray .tlui-button:active .tlui-icon {
+  transform: scale(0.92);
+}
+
+/* Tool-lock button (left of the pill): meet the 44pt floor, match the family. */
+.variant-quiet-studio .tlui-main-toolbar__lock-button {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 14px;
+}
+
+/* ---- Shelf toggle ----------------------------------------------------- */
+
+/* The authored glyph tracks the same soft-ink voice as its siblings. */
+.variant-quiet-studio .qs-tray-toggle__glyph {
+  display: block;
+}
+
+/* While the shelf is open (but no shelf shape is live) the toggle carries a
+   quiet hint wash instead of the full ink pill. */
+.variant-quiet-studio .qs-tray-toggle[aria-expanded='true']:not([data-isactive='true'])::after {
+  background: var(--tl-color-hint);
+  opacity: 1;
+}
+
+/* A shelf shape is the live tool: the toggle inks in like any pressed tool. */
+.variant-quiet-studio .qs-tray-toggle[data-isactive='true'] {
+  color: var(--tl-color-selected-contrast);
+}
+
+/* Companion fill for the inked toggle state. */
+.variant-quiet-studio .qs-tray-toggle[data-isactive='true']::after {
+  background: var(--tl-color-selected);
+  opacity: 1;
+}
+
+/* The single accent: a clay dot marking that the live shape lives in the
+   shelf, not the dock. */
+.variant-quiet-studio .qs-tray-toggle__dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--qs-accent);
+}
+
+/* ---- Shape shelf ------------------------------------------------------ */
+
+/* Frosted shelf floating a beat above the dock. Kept mounted; open/close is
+   an opacity + 8px rise on the damped curve — visibility gates interaction
+   and the accessibility tree while closed. */
+.variant-quiet-studio .qs-shape-tray {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  z-index: var(--tl-layer-panels);
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border-radius: 22px;
+  box-shadow: var(--tl-shadow-3);
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--qs-calm) var(--qs-ease),
+    transform var(--qs-calm) var(--qs-ease), visibility 0s var(--qs-calm);
+}
+
+/* Open state: settled, fully present, interactive. */
+.variant-quiet-studio .qs-shape-tray[data-open='true'] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity var(--qs-calm) var(--qs-ease),
+    transform var(--qs-calm) var(--qs-ease), visibility 0s 0s;
+}
+
+/* Editorial caption over the shelf grid. */
+.variant-quiet-studio .qs-shape-tray__caption {
+  padding: 4px 10px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--qs-caption);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Six columns of 52px targets; overrides tldraw's 4-column .tlui-grid. */
+.variant-quiet-studio .qs-shape-tray__grid {
+  grid-template-columns: repeat(6, 52px);
+  gap: 2px;
+  padding: 0;
+  overflow: visible;
+}
+
+/* Companion reset for .tlui-grid's negative child margins. */
+.variant-quiet-studio .qs-shape-tray__grid > * {
+  margin: 0;
+}
+
+/* Shelf targets match the dock: 52px, same glyph size. */
+.variant-quiet-studio .qs-shape-tray .tlui-button {
+  height: 52px;
+  min-width: 52px;
+}
+
+/* Companion glyph sizing for the shelf buttons. */
+.variant-quiet-studio .qs-shape-tray .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* ---- Style panel (top right) ------------------------------------------ */
+
+/* Float the panel off the screen edge; glass and shadow come from tokens. */
+.variant-quiet-studio .tlui-style-panel__wrapper {
+  margin: 12px;
+  border-radius: 22px;
+}
+
+/* A touch wider than the tablet baseline so four 48px swatches sit with
+   real gutters inside the 6px frame. */
+.variant-quiet-studio .tlui-style-panel {
+  width: 232px;
+  max-width: 232px;
+  padding: 6px;
+}
+
+/* Caption above the stock content, same editorial voice as the shelf. */
+.variant-quiet-studio .qs-style-caption {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--qs-caption);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---- Menu zone (top left) --------------------------------------------- */
+
+/* Replace tldraw's corner-attached tab (2px canvas-colored borders) with a
+   floating glass pill that matches the rest of the chrome. */
+.variant-quiet-studio .tlui-menu-zone {
+  margin: 12px;
+  padding: 4px;
+  border: none;
+  border-radius: 22px;
+  box-shadow: var(--tl-shadow-2);
+}
+
+/* ---- Menus & popovers -------------------------------------------------- */
+
+/* Dropdown menus: soft frame, room to breathe (glass via tokens above). */
+.variant-quiet-studio .tlui-menu {
+  padding: 4px;
+}
+
+/* Menu rows: keep the 44pt floor, round to sit inside the softer frame. */
+.variant-quiet-studio .tlui-menu .tlui-button {
+  height: 44px;
+  border-radius: 12px;
+}
+
+/* ---- Motion accessibility --------------------------------------------- */
+
+/* Reduced motion: everything snaps; nothing animates. */
+@media (prefers-reduced-motion: reduce) {
+  .variant-quiet-studio .qs-shape-tray,
+  .variant-quiet-studio .tlui-button::after,
+  .variant-quiet-studio .tlui-main-toolbar .tlui-icon,
+  .variant-quiet-studio .qs-shape-tray .tlui-icon {
+    transition: none;
+  }
+}
