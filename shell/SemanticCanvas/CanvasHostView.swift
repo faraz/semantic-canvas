@@ -4,8 +4,9 @@ import WebKit
 struct CanvasHostView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        // Ephemeral until the persistent-Board ticket lands (#9).
-        config.websiteDataStore = .nonPersistent()
+        // Persistent store: the Board's local persistence (tldraw IndexedDB)
+        // must survive relaunch.
+        config.websiteDataStore = .default()
 
         let webView = WKWebView(frame: .zero, configuration: config)
         // The Canvas owns all gestures; the scroll view must never intercept.
