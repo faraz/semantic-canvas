@@ -19,4 +19,5 @@ targets:
         INFOPLIST_KEY_UIRequiresFullScreen: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: XY3PBJHX4Y
         SWIFT_VERSION: "5.9"
