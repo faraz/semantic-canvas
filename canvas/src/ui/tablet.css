@@ -1,0 +1,79 @@
+/*
+ * Tablet sizing layer, loaded after tldraw/tldraw.css.
+ *
+ * Target: 12.9" iPad Pro, fullscreen WKWebView, fingers + Apple Pencil.
+ * iOS HIG minimum touch target is 44pt; tldraw's desktop chrome uses 40px
+ * buttons and a 148px style panel. We bump the interactive chrome to >=44px
+ * with the shallowest selectors tldraw's stable class names allow (top-level
+ * .tlui-* classes only, no deep structural chains), so a tldraw upgrade
+ * degrades to "slightly small" rather than "broken".
+ */
+
+/* ---- Toolbar (bottom center) ------------------------------------------ */
+
+/* Tool buttons: 40px -> 52px. Applies inside the main toolbar only, which
+   also covers the tool-lock toggle to its left. */
+.tlui-main-toolbar .tlui-button {
+  height: 52px;
+  min-width: 52px;
+}
+
+/* Larger glyphs so the bigger buttons don't look empty at arm's length. */
+.tlui-main-toolbar .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* ---- Style panel (top right) ------------------------------------------ */
+
+/* Widen the panel from tldraw's 148px desktop micro-panel. 220px fits four
+   48px color swatches per row (the color picker is a 4-column .tlui-grid)
+   with comfortable gutters, and reads at a glance mid-meeting. Width and
+   max-width are both set upstream, so both are overridden. */
+.tlui-style-panel {
+  width: 220px;
+  max-width: 220px;
+}
+
+/* Every control in the panel (color swatches, fill/dash/size toggles,
+   dropdown triggers, the opacity slider row) is a .tlui-button or sized by
+   one: 40px -> 48px. */
+.tlui-style-panel .tlui-button {
+  height: 48px;
+  min-width: 48px;
+}
+
+/* tldraw pins toggle-group items to width: 40px; re-pin at 48px so rows of
+   toggles (fill, dash, size, align) match the new height. */
+.tlui-style-panel .tlui-toolbar-toggle-group-item {
+  width: 48px;
+}
+
+.tlui-style-panel .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* Pickers that pop out of the style panel (extra fills, geo shape grid,
+   arrowheads, spline) portal outside .tlui-style-panel; they are popovers,
+   as are the actions-menu grid and page menu. Menus (.tlui-menu) are
+   dropdown menus, not popovers, and are handled below. */
+.tlui-popover__content .tlui-button {
+  height: 48px;
+  min-width: 48px;
+}
+
+/* ---- Menu zone (top left: menu trigger, undo/redo quick actions) ------ */
+
+/* Undo/redo live here mid-meeting; same 48px treatment as the toolbar. */
+.tlui-menu-zone .tlui-button {
+  height: 48px;
+  min-width: 48px;
+}
+
+/* ---- Menus (main menu, submenus, context menu) ------------------------ */
+
+/* Menu rows: 40px -> 44px. Width already spans the menu. */
+.tlui-menu .tlui-button {
+  height: 44px;
+}

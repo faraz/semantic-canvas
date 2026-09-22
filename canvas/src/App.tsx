@@ -1,6 +1,5 @@
 import {
   DefaultMainMenu,
-  DefaultMainMenuContent,
   Tldraw,
   TldrawUiMenuGroup,
   TldrawUiMenuItem,
@@ -9,6 +8,9 @@ import {
   type TLComponents,
 } from 'tldraw'
 import 'tldraw/tldraw.css'
+import './ui/tablet.css'
+import { TabletMainMenuContent } from './ui/TabletMainMenuContent'
+import { TabletToolbar } from './ui/TabletToolbar'
 import { assetUrls } from './assetUrls'
 import { postShapeSnapped } from './bridge'
 import { clearBoard } from './clearBoard'
@@ -30,12 +32,19 @@ function MainMenu() {
         />
         <SnapToggleMenuItem />
       </TldrawUiMenuGroup>
-      <DefaultMainMenuContent />
+      <TabletMainMenuContent />
     </DefaultMainMenu>
   )
 }
 
-const components: TLComponents = { MainMenu, QuickActions }
+const components: TLComponents = {
+  MainMenu,
+  Toolbar: TabletToolbar,
+  QuickActions,
+  // No hardware keyboard in the meeting flow; nulling the dialog also makes
+  // tldraw's KeyboardShortcutsMenuItem render nothing everywhere.
+  KeyboardShortcutsDialog: null,
+}
 
 function mount(editor: Editor) {
   const illustrationSnap = wireIllustrationSnap(editor, { onSnap: postShapeSnapped })
