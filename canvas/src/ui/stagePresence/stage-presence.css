@@ -1,0 +1,313 @@
+/*
+ * Stage Presence skin, loaded after tldraw/tldraw.css and tablet.css.
+ *
+ * Scope: `variant-stage-presence` is applied to the tldraw container
+ * (editor.getContainer()) by StageToolbar, so every selector here — including
+ * the .tlui-* re-styling for chrome we don't own as components (menu zone,
+ * menus, portalled popovers) — is inert unless this variant is mounted.
+ * All .tlui-* overrides stay shallow (scope + at most two class hops) so a
+ * tldraw upgrade degrades to "slightly plain" rather than "broken".
+ *
+ * Two visual rules for the SharePad audience:
+ * 1. Panels are solid pills with a 2px ink ring. Rings survive video
+ *    compression; feathered shadows do not, so shadows here are support, not
+ *    the silhouette.
+ * 2. The ghost choreography is opacity-only. Hit targets never move, shrink,
+ *    or disable while fading — a tap on a ghost lands exactly where the pill
+ *    was, and raises the lights.
+ */
+
+.variant-stage-presence {
+  --sp-ghost: 0.15; /* silhouette stays readable on the stream */
+  --sp-raise: 120ms; /* lights up: near-instant */
+  --sp-dim: 360ms; /* lights down: unhurried, off the performer's back */
+  --sp-ease: cubic-bezier(0.33, 0, 0.2, 1);
+  /* Crisp theme-aware ink edge. The rgba line is the fallback for engines
+     without color-mix; current iPad WKWebViews take the second value. */
+  --sp-edge: rgba(0, 0, 0, 0.22);
+  --sp-edge: color-mix(in srgb, var(--tl-color-text) 24%, transparent);
+  --sp-ring: 0 0 0 2px var(--sp-edge);
+}
+
+/* ---- House lights: the ghost choreography ----------------------------- */
+
+/* Everything that fades, fades in place: opacity only, no transforms, and
+   pointer-events stay live so the first tap both acts and raises. */
+.variant-stage-presence .tlui-main-toolbar,
+.variant-stage-presence .tlui-menu-zone,
+.variant-stage-presence .tlui-style-panel,
+.variant-stage-presence .tlui-navigation-panel,
+.variant-stage-presence .sp-tray {
+  transition: opacity var(--sp-raise) linear;
+  will-change: opacity;
+}
+
+.variant-stage-presence[data-sp-ghost='true'] .tlui-main-toolbar,
+.variant-stage-presence[data-sp-ghost='true'] .tlui-menu-zone,
+.variant-stage-presence[data-sp-ghost='true'] .tlui-style-panel,
+.variant-stage-presence[data-sp-ghost='true'] .tlui-navigation-panel,
+.variant-stage-presence[data-sp-ghost='true'] .sp-tray {
+  opacity: var(--sp-ghost);
+  /* Slight delay so a quick tick mark doesn't flicker the chrome. */
+  transition: opacity var(--sp-dim) var(--sp-ease) 60ms;
+}
+
+/* ---- Dock (bottom toolbar) -------------------------------------------- */
+
+/* .tlui-main-toolbar__tools is the visible plate around the tool buttons:
+   promote it from rounded rectangle to full pill with the ink ring. */
+.variant-stage-presence .tlui-main-toolbar__tools {
+  border-radius: 999px;
+  padding: 5px;
+  background: var(--tl-color-panel);
+  box-shadow: var(--sp-ring), var(--tl-shadow-3);
+}
+
+/* 52px round targets (iOS HIG floor is 44pt) with glyphs sized to read at
+   arm's length and on stream. Covers the tool-lock toggle too. */
+.variant-stage-presence .tlui-main-toolbar .tlui-button {
+  height: 52px;
+  min-width: 52px;
+  border-radius: 999px;
+}
+.variant-stage-presence .tlui-main-toolbar .tlui-button__tool {
+  width: 52px;
+}
+.variant-stage-presence .tlui-main-toolbar .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* Active tool: tldraw already fills the ::after chip with --tl-color-selected;
+   round it into a bold dot-chip whose silhouette survives compression. */
+.variant-stage-presence .tlui-main-toolbar .tlui-button__tool::after {
+  inset: 3px;
+  border-radius: 999px;
+}
+
+/* ---- Shape tray (right thumb edge) ------------------------------------ */
+
+/* Fixed to the right edge, vertically centered. .tlui-layout's `contain`
+   makes it the containing block, and it spans the viewport, so this rides
+   the true screen edge in both orientations. The wrapper is a pass-through;
+   its children re-enable pointer events. The centering transform is static —
+   the ghost fade never touches transform, so hit targets never move. */
+.variant-stage-presence .sp-tray {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--tl-layer-panels);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* The always-visible rail: five frequent shapes + the More toggle. */
+.variant-stage-presence .sp-tray__rail {
+  pointer-events: all;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 999px;
+  background: var(--tl-color-panel);
+  box-shadow: var(--sp-ring), var(--tl-shadow-3);
+}
+
+.variant-stage-presence .sp-tray__rail .tlui-button {
+  height: 52px;
+  width: 52px;
+  min-width: 52px;
+  border-radius: 999px;
+}
+.variant-stage-presence .sp-tray__rail .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+.variant-stage-presence .sp-tray__rail .tlui-button__tool::after {
+  inset: 3px;
+  border-radius: 999px;
+}
+
+/* More toggle: seam above it separates "shapes" from "the rest". */
+.variant-stage-presence .sp-tray__more {
+  margin-top: 4px;
+  border-top: 1px solid var(--tl-color-divider);
+  border-radius: 0 0 999px 999px;
+}
+/* Open state: pressed-looking well. */
+.variant-stage-presence .sp-tray__more[aria-expanded='true'] {
+  background: var(--tl-color-muted-2);
+}
+/* The active geo lives inside the closed tray: light the toggle so the
+   current tool is always visible somewhere on stage. */
+.variant-stage-presence .sp-tray__more[data-isactive='true'] {
+  color: var(--tl-color-selected);
+}
+
+/* The flyout: the remaining twelve shapes as a fixed 3x4 grid flaring from
+   the rail. Stays mounted; closed = invisible, untappable, out of the a11y
+   tree via visibility (delayed so the fade can finish). */
+.variant-stage-presence .sp-tray__flyout {
+  pointer-events: all;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.94);
+  transform-origin: right center;
+  transition:
+    opacity 140ms var(--sp-ease),
+    transform 140ms var(--sp-ease),
+    visibility 0s linear 140ms;
+}
+.variant-stage-presence .sp-tray[data-expanded='true'] .sp-tray__flyout {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+  transition:
+    opacity 160ms var(--sp-ease),
+    transform 160ms var(--sp-ease),
+    visibility 0s;
+}
+
+.variant-stage-presence .sp-tray__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  gap: 2px;
+  padding: 8px;
+  border-radius: 24px;
+  background: var(--tl-color-panel);
+  box-shadow: var(--sp-ring), var(--tl-shadow-3);
+}
+.variant-stage-presence .sp-tray__grid .tlui-button {
+  height: 52px;
+  width: 52px;
+  min-width: 52px;
+  border-radius: 14px;
+}
+.variant-stage-presence .sp-tray__grid .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* ---- Style panel (top right) ------------------------------------------ */
+
+/* The wrapper is the visible card: same pill language as the dock. */
+.variant-stage-presence .tlui-style-panel__wrapper {
+  border-radius: 22px;
+  margin: 10px;
+  box-shadow: var(--sp-ring), var(--tl-shadow-3);
+  background: var(--tl-color-panel);
+  overflow: hidden; /* keep row corners inside the card's radius */
+}
+
+/* Widen from tldraw's 148px desktop micro-panel: 232px fits four 48px
+   swatches per row with clear gutters, legible on a compressed stream. */
+.variant-stage-presence .tlui-style-panel {
+  width: 232px;
+  max-width: 232px;
+}
+
+/* Marquee label rendered by StageStylePanel. */
+.variant-stage-presence .sp-style-marquee {
+  padding: 12px 14px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tl-color-text-3);
+  user-select: none;
+}
+
+/* Every control in the panel (swatches, fill/dash/size toggles, dropdown
+   triggers, the opacity row) is a .tlui-button or sized by one: >= 48px. */
+.variant-stage-presence .tlui-style-panel .tlui-button {
+  height: 48px;
+  min-width: 48px;
+}
+/* tldraw pins toggle-group items to width: 40px; re-pin to match. */
+.variant-stage-presence .tlui-style-panel .tlui-toolbar-toggle-group-item {
+  width: 48px;
+}
+.variant-stage-presence .tlui-style-panel .tlui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* ---- Menu zone (top left: menu trigger + undo/redo) ------------------- */
+
+/* Detach it from the corner into a floating pill matching the dock. */
+.variant-stage-presence .tlui-menu-zone {
+  margin: 10px;
+  border: none; /* replaces the corner-glued 2px background borders */
+  border-radius: 999px;
+  padding: 4px 6px;
+  background: var(--tl-color-panel);
+  box-shadow: var(--sp-ring), var(--tl-shadow-3);
+}
+.variant-stage-presence .tlui-menu-zone .tlui-button {
+  height: 48px;
+  min-width: 48px;
+  border-radius: 999px;
+}
+
+/* ---- Menus and popovers (portal inside the container, so in scope) ---- */
+
+/* Dropdown menus (main menu, submenus, context menu): 44px rows, soft card. */
+.variant-stage-presence .tlui-menu {
+  border-radius: 16px;
+  box-shadow: var(--sp-ring), var(--tl-shadow-3);
+}
+.variant-stage-presence .tlui-menu .tlui-button {
+  height: 44px;
+}
+
+/* Popovers (extra fills, arrowheads, spline, actions grid): 48px targets. */
+.variant-stage-presence .tlui-popover__content {
+  border-radius: 16px;
+  box-shadow: var(--sp-ring), var(--tl-shadow-3);
+}
+.variant-stage-presence .tlui-popover__content .tlui-button {
+  height: 48px;
+  min-width: 48px;
+}
+
+/* ---- Narrow widths (portrait Split View, small stages) ---------------- */
+
+@media (max-width: 940px) {
+  .variant-stage-presence .tlui-main-toolbar .tlui-button {
+    height: 48px;
+    min-width: 48px;
+  }
+  .variant-stage-presence .tlui-main-toolbar .tlui-button__tool {
+    width: 48px;
+  }
+  .variant-stage-presence .sp-tray__rail .tlui-button,
+  .variant-stage-presence .sp-tray__grid .tlui-button {
+    height: 48px;
+    width: 48px;
+    min-width: 48px;
+  }
+  .variant-stage-presence .sp-tray__grid {
+    grid-template-columns: repeat(3, 48px);
+  }
+}
+
+/* ---- Reduced motion: same states, instantly --------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .variant-stage-presence .tlui-main-toolbar,
+  .variant-stage-presence .tlui-menu-zone,
+  .variant-stage-presence .tlui-style-panel,
+  .variant-stage-presence .tlui-navigation-panel,
+  .variant-stage-presence .sp-tray,
+  .variant-stage-presence .sp-tray__flyout {
+    transition: none;
+  }
+  .variant-stage-presence .sp-tray__flyout {
+    transform: none;
+  }
+}

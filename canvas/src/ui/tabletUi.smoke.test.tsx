@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Tldraw } from 'tldraw'
-import { TabletToolbar } from './TabletToolbar'
+import { stagePresenceComponents } from './stagePresence'
 
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -58,12 +58,12 @@ HTMLCanvasElement.prototype.getContext = function (
 } as typeof HTMLCanvasElement.prototype.getContext
 
 describe('tablet ui smoke', () => {
-  it('renders the toolbar with the nine tools and no overflow button', async () => {
+  it('renders the Stage Presence dock, shape rail, and no overflow button', async () => {
     const el = document.createElement('div')
     document.body.appendChild(el)
     const root = createRoot(el)
     await act(async () => {
-      root.render(<Tldraw components={{ Toolbar: TabletToolbar }} />)
+      root.render(<Tldraw components={stagePresenceComponents} />)
     })
 
     // Every common tool is a first-class toolbar button...
@@ -77,6 +77,11 @@ describe('tablet ui smoke', () => {
       'arrow',
       'line',
       'text',
+      'note',
+      // Rail shapes are first-class tools too.
+      'triangle',
+      'cloud',
+      'star',
     ]
     for (const id of toolIds) {
       expect(
@@ -86,10 +91,14 @@ describe('tablet ui smoke', () => {
     }
 
     // ...and none is demoted to the "..." overflow. jsdom measures the
-    // toolbar at width 0, so this only passes because TabletToolbar pins
+    // toolbar at width 0, so this only passes because the Stage dock pins
     // minItems === maxItems; the default toolbar would show the overflow
     // button here.
     expect(el.querySelector('[data-testid="tools.more-button"]')).toBeNull()
+
+    // The right-edge shape rail and its flare-out tray are mounted.
+    expect(el.querySelector('.sp-tray')).toBeTruthy()
+    expect(el.querySelector('.sp-tray__grid')).toBeTruthy()
 
     await act(async () => root.unmount())
     el.remove()

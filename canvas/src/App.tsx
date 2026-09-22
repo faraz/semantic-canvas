@@ -10,7 +10,7 @@ import {
 import 'tldraw/tldraw.css'
 import './ui/tablet.css'
 import { TabletMainMenuContent } from './ui/TabletMainMenuContent'
-import { TabletToolbar } from './ui/TabletToolbar'
+import { stagePresenceComponents } from './ui/stagePresence'
 import { assetUrls } from './assetUrls'
 import { postShapeSnapped } from './bridge'
 import { clearBoard } from './clearBoard'
@@ -39,8 +39,10 @@ function MainMenu() {
 
 const components: TLComponents = {
   MainMenu,
-  Toolbar: TabletToolbar,
   QuickActions,
+  // Stage Presence chrome: toolbar dock + shape rail + ghost choreography
+  // and the touch-first style panel (bake-off winner, issue #19).
+  ...stagePresenceComponents,
   // No hardware keyboard in the meeting flow; nulling the dialog also makes
   // tldraw's KeyboardShortcutsMenuItem render nothing everywhere.
   KeyboardShortcutsDialog: null,
