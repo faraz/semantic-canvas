@@ -16,6 +16,7 @@ import { wireShapeSnap } from './shapeSnap/wire'
 import { wireInkCapture } from './shapeSnap/capture'
 import { wireIllustrationSnap } from './illustrationSnap/wire'
 import { wireTemplateCapture } from './illustrationSnap/capture'
+import { QuickActions, SnapToggleMenuItem } from './snapToggle'
 
 function MainMenu() {
   const editor = useEditor()
@@ -27,13 +28,14 @@ function MainMenu() {
           label="New board"
           onSelect={() => clearBoard(editor)}
         />
+        <SnapToggleMenuItem />
       </TldrawUiMenuGroup>
       <DefaultMainMenuContent />
     </DefaultMainMenu>
   )
 }
 
-const components: TLComponents = { MainMenu }
+const components: TLComponents = { MainMenu, QuickActions }
 
 function mount(editor: Editor) {
   const illustrationSnap = wireIllustrationSnap(editor, { onSnap: postShapeSnapped })

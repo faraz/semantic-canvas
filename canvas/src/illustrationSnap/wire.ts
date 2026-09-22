@@ -24,6 +24,7 @@
 // geometric snap as usual.
 
 import { type Editor, type TLDrawShape, type TLShapeId } from 'tldraw'
+import { isSnapEnabled, subscribeSnapEnabled } from '../snapPreference'
 import { onInkComplete } from '../shapeSnap/inkEvents'
 import { createIllustration, type InkStyle } from './illustrate'
 import {
@@ -84,6 +85,10 @@ export function wireIllustrationSnap(
   })
 
   const disposeInk = onInkComplete(editor, (id, points) => {
+    // The Snap preference is checked at stroke-completion time, not wiring
+    // time: toggling takes effect immediately without re-wiring. While off,
+    // Ink never even enters a group.
+    if (!isSnapEnabled()) return
     const shape = editor.getShape(id)
     if (!shape || shape.type !== 'draw' || shape.rotation !== 0) return
     const draw = shape as TLDrawShape
@@ -113,6 +118,13 @@ export function wireIllustrationSnap(
     }
   )
 
+  // Turning Snap off mid-group flushes the pending group: it settles, and
+  // snapSettledGroup's own preference check discards it — the drawn Ink
+  // stays, and turning Snap back on can't resurrect a stale group.
+  const disposePreference = subscribeSnapEnabled(() => {
+    if (!isSnapEnabled()) tracker.flush()
+  })
+
   return {
     noteInkSnapped(inkId, snappedShapeId) {
       tracker.noteReplacement(inkId, snappedShapeId)
@@ -120,6 +132,7 @@ export function wireIllustrationSnap(
     dispose() {
       disposeInk()
       disposePenDown()
+      disposePreference()
       tracker.dispose()
       styles.clear()
     },
@@ -132,6 +145,9 @@ function snapSettledGroup(
   styles: Map<TLShapeId, InkStyle>,
   options: IllustrationSnapOptions
 ): void {
+  // Checked again at settle time: a group formed while Snap was on must not
+  // land after the presenter turns it off.
+  if (!isSnapEnabled()) return
   // Only members still on the Board — as Ink or as a geometric snap's
   // result — count and get consumed. (A member erased or undone before the
   // group settled is neither matched on nor deleted.)

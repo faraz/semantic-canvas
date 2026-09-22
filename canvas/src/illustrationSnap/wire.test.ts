@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '../tldrawTestShims'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
   createShapeId,
   type Editor,
@@ -9,6 +9,7 @@ import {
   type TLShape,
 } from 'tldraw'
 import { b64Vecs } from '@tldraw/tlschema'
+import { setSnapEnabled } from '../snapPreference'
 import { makeTestEditor } from '../tldrawTestEditor'
 import type { InkPoint } from '../shapeSnap/recognize'
 import { zigzagScribble, roughRectangle } from '../shapeSnap/testInk'
@@ -55,6 +56,8 @@ function pageShapes(editor: Editor): TLShape[] {
 }
 
 describe('wireIllustrationSnap', () => {
+  beforeEach(() => setSnapEnabled(true))
+
   it('snaps a multi-stroke stick figure to one grouped figure, single undo restores the pre-illustration state', async () => {
     const editor = makeTestEditor()
     const counts = wireBoth(editor)
@@ -183,5 +186,70 @@ describe('wireIllustrationSnap', () => {
     }
     await wait(120)
     expect(counts.illustration).toBe(1)
+  })
+
+  it('leaves every stroke as Ink while Snapping is off — no grouping, no geo snaps', async () => {
+    const editor = makeTestEditor()
+    const counts = wireBoth(editor)
+    setSnapEnabled(false)
+
+    const strokes = stickFigureInk({ jitter: 3, seed: 12 })
+    for (const stroke of strokes) {
+      completeInk(editor, stroke)
+    }
+    await wait(120)
+
+    const shapes = pageShapes(editor)
+    expect(shapes).toHaveLength(strokes.length)
+    expect(shapes.every((s) => s.type === 'draw')).toBe(true)
+    expect(counts.illustration).toBe(0)
+    expect(counts.geometric).toBe(0)
+  })
+
+  it('toggling off mid-group discards the pending group; turning back on cannot resurrect it', async () => {
+    const editor = makeTestEditor()
+    const counts = wireBoth(editor)
+
+    for (const stroke of stickFigureInk({ jitter: 3, seed: 12 })) {
+      completeInk(editor, stroke)
+    }
+    // Per-stroke geometric snaps have landed; the group is still pending.
+    await wait(20)
+    const preToggle = pageShapes(editor).map((s) => s.id).sort()
+    expect(pageShapes(editor).some((s) => s.type === 'geo')).toBe(true)
+
+    setSnapEnabled(false)
+    await wait(100)
+    // No illustration landed: the Board keeps the intermediate state.
+    expect(counts.illustration).toBe(0)
+    expect(pageShapes(editor).map((s) => s.id).sort()).toEqual(preToggle)
+
+    // Re-enabling later must not snap the stale group.
+    setSnapEnabled(true)
+    await wait(100)
+    expect(counts.illustration).toBe(0)
+    expect(pageShapes(editor).map((s) => s.id).sort()).toEqual(preToggle)
+  })
+
+  it('toggling Snapping back on restores Illustration Snap without re-wiring', async () => {
+    const editor = makeTestEditor()
+    const counts = wireBoth(editor)
+
+    setSnapEnabled(false)
+    const offId = completeInk(editor, heartInk({ jitter: 3, seed: 4 })[0], { x: 0, y: 0 })
+    await wait(120)
+    expect(editor.getShape(offId)?.type).toBe('draw')
+    expect(counts.illustration).toBe(0)
+
+    setSnapEnabled(true)
+    completeInk(editor, heartInk({ jitter: 3, seed: 8 })[0], { x: 1500, y: 1500 })
+    await wait(120)
+    expect(counts.illustration).toBe(1)
+    const hearts = pageShapes(editor).filter(
+      (s) => s.type === 'geo' && (s as TLGeoShape).props.geo === 'heart'
+    )
+    expect(hearts).toHaveLength(1)
+    // The stroke drawn while off stays Ink.
+    expect(editor.getShape(offId)?.type).toBe('draw')
   })
 })

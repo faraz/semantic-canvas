@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '../tldrawTestShims'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
   createShapeId,
   type Editor,
@@ -19,12 +19,14 @@ import {
 } from './testInk'
 import type { InkPoint } from './recognize'
 import { wireShapeSnap } from './wire'
+import { setSnapEnabled } from '../snapPreference'
 import { makeTestEditor } from '../tldrawTestEditor'
 
 
 
+let strokeSeq = 0
 function completeInk(editor: Editor, points: InkPoint[]) {
-  const id = createShapeId('stroke')
+  const id = createShapeId(`stroke-${strokeSeq++}`)
   const path = b64Vecs.encodePoints(
     points.map((p) => ({ x: p.x, y: p.y, z: 0.5 })),
     3
@@ -43,6 +45,8 @@ function completeInk(editor: Editor, points: InkPoint[]) {
 const flushSnap = () => new Promise((resolve) => setTimeout(resolve, 10))
 
 describe('wireShapeSnap', () => {
+  beforeEach(() => setSnapEnabled(true))
+
   it('swaps a completed circular Ink stroke for a geo ellipse', async () => {
     const editor = makeTestEditor()
     let snaps = 0
@@ -242,5 +246,66 @@ describe('wireShapeSnap', () => {
     expect(editor.getShape(id)).toBeDefined()
     const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
     expect(shapes.filter((s) => s.type === 'geo')).toHaveLength(0)
+  })
+
+  it('leaves Ink as Ink while Snapping is off', async () => {
+    const editor = makeTestEditor()
+    let snaps = 0
+    wireShapeSnap(editor, { onSnap: () => snaps++ })
+    setSnapEnabled(false)
+
+    const id = completeInk(
+      editor,
+      roughEllipse({ cx: 200, cy: 200, rx: 80, ry: 60, jitter: 3, seed: 4 })
+    )
+    await flushSnap()
+
+    expect(snaps).toBe(0)
+    expect(editor.getShape(id)?.type).toBe('draw')
+    const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
+    expect(shapes.filter((s) => s.type === 'geo')).toHaveLength(0)
+  })
+
+  it('toggling Snapping mid-session gates and restores without re-wiring', async () => {
+    const editor = makeTestEditor()
+    wireShapeSnap(editor)
+
+    // Off: the stroke stays Ink.
+    setSnapEnabled(false)
+    const inkId = completeInk(
+      editor,
+      roughEllipse({ cx: 150, cy: 150, rx: 70, ry: 70, jitter: 2, seed: 9 })
+    )
+    await flushSnap()
+    expect(editor.getShape(inkId)?.type).toBe('draw')
+
+    // Back on: the same wiring snaps the next stroke — no reload needed.
+    setSnapEnabled(true)
+    const nextId = completeInk(
+      editor,
+      roughRectangle({ x: 400, y: 400, w: 200, h: 150, jitter: 3, seed: 2 })
+    )
+    await flushSnap()
+    expect(editor.getShape(nextId)).toBeUndefined()
+    const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
+    expect(shapes.filter((s) => s.type === 'geo')).toHaveLength(1)
+    // The stroke drawn while off stays Ink.
+    expect(editor.getShape(inkId)?.type).toBe('draw')
+  })
+
+  it('respects a toggle-off that lands after stroke completion but before the deferred snap', async () => {
+    const editor = makeTestEditor()
+    wireShapeSnap(editor)
+
+    const id = completeInk(
+      editor,
+      roughEllipse({ cx: 200, cy: 200, rx: 80, ry: 60, jitter: 3, seed: 4 })
+    )
+    // The swap is deferred past the Ink's own transaction; turning Snapping
+    // off in that gap must still keep the Ink.
+    setSnapEnabled(false)
+    await flushSnap()
+
+    expect(editor.getShape(id)?.type).toBe('draw')
   })
 })

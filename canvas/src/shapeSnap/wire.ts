@@ -9,6 +9,7 @@ import {
   type TLShapeId,
 } from 'tldraw'
 import { lineShapePoints } from '../lineShape'
+import { isSnapEnabled } from '../snapPreference'
 import { onInkComplete } from './inkEvents'
 import { recognizeInk, type RecognizedInk } from './recognize'
 
@@ -30,6 +31,9 @@ export function wireShapeSnap(editor: Editor, options: ShapeSnapOptions = {}): (
 }
 
 function snapCompletedInk(editor: Editor, id: TLShapeId, options: ShapeSnapOptions): void {
+  // The Snap preference is checked here, at snap time, not at wiring time:
+  // toggling takes effect immediately without re-wiring.
+  if (!isSnapEnabled()) return
   const shape = editor.getShape(id)
   if (!shape || shape.type !== 'draw') return
   const draw = shape as TLDrawShape
