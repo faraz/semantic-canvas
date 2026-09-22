@@ -9,6 +9,7 @@ import {
   type TLComponents,
 } from 'tldraw'
 import 'tldraw/tldraw.css'
+import { assetUrls } from './assetUrls'
 import { clearBoard } from './clearBoard'
 import { wireShapeSnap } from './shapeSnap/wire'
 import { wireStrokeCapture } from './shapeSnap/capture'
@@ -42,6 +43,11 @@ function mount(editor: Editor) {
 
 export function App() {
   return (
-    <Tldraw persistenceKey="semantic-canvas-board" components={components} onMount={mount} />
+    <Tldraw
+      persistenceKey="semantic-canvas-board"
+      assetUrls={assetUrls}
+      components={components}
+      onMount={mount}
+    />
   )
 }
