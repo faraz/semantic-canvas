@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Pencil Probe — PROTOTYPE</title>
+    <style>
+      html,
+      body,
+      #root {
+        position: fixed;
+        inset: 0;
+        margin: 0;
+        padding: 0;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+      #hud {
+        position: fixed;
+        left: 8px;
+        bottom: 8px;
+        z-index: 9999;
+        pointer-events: none;
+        font: 11px ui-monospace, monospace;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 4px 8px;
+        border-radius: 6px;
+        white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="hud">pencil-probe · waiting for input</div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
