@@ -214,7 +214,7 @@ function cornerTurnShare(pts: readonly InkPoint[]): number {
   return top4 / total
 }
 
-function classifyClosedStroke(pts: readonly InkPoint[]): PrototypeKind | 'none' {
+function classifyClosedInk(pts: readonly InkPoint[]): PrototypeKind | 'none' {
   const { minX, minY, maxX, maxY } = bounds(pts)
   const boxArea = (maxX - minX) * (maxY - minY)
   const features = {
@@ -263,7 +263,7 @@ export function recognizeInk(
     return NONE
   }
 
-  const kind = classifyClosedStroke(pts)
+  const kind = classifyClosedInk(pts)
   if (kind !== 'ellipse') return NONE
 
   return { kind: 'ellipse', x: minX, y: minY, w: maxX - minX, h: maxY - minY }

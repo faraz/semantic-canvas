@@ -1,33 +1,35 @@
-// Wires Shape Snap into the editor: when an Ink stroke completes, run the
-// recognizer and — on a hit — replace the stroke with clean geometry as a
-// single undoable entry, so one undo restores the original Ink.
+// Wires Shape Snap into the editor: when Ink completes, run the recognizer
+// and — on a hit — replace the Ink with clean geometry as a single undoable
+// entry, so one undo restores it.
 import {
   getPointsFromDrawSegments,
   type Editor,
   type TLDrawShape,
   type TLShapeId,
 } from 'tldraw'
+import { onInkComplete } from './inkEvents'
 import { recognizeInk } from './recognize'
 
-export function wireShapeSnap(editor: Editor): () => void {
-  return editor.sideEffects.registerAfterChangeHandler('shape', (prev, next, source) => {
-    if (source !== 'user') return
-    if (prev.type !== 'draw' || next.type !== 'draw') return
-    const prevDraw = prev as TLDrawShape
-    const nextDraw = next as TLDrawShape
-    if (prevDraw.props.isComplete || !nextDraw.props.isComplete) return
-    // Defer past the stroke's own store transaction and history entry; the
-    // swap must be a separate undo stop.
-    editor.timers.setTimeout(() => snapCompletedStroke(editor, next.id), 0)
+export interface ShapeSnapOptions {
+  // Called after a snap lands; the Bridge ticket connects this to the haptic.
+  onSnap?: () => void
+}
+
+export function wireShapeSnap(editor: Editor, options: ShapeSnapOptions = {}): () => void {
+  return onInkComplete(editor, (id) => {
+    // Defer past the Ink's own store transaction and history entry; the swap
+    // must be a separate undo stop.
+    editor.timers.setTimeout(() => snapCompletedInk(editor, id, options), 0)
   })
 }
 
-function snapCompletedStroke(editor: Editor, id: TLShapeId): void {
+function snapCompletedInk(editor: Editor, id: TLShapeId, options: ShapeSnapOptions): void {
   const shape = editor.getShape(id)
   if (!shape || shape.type !== 'draw') return
   const draw = shape as TLDrawShape
   if (draw.rotation !== 0) return
 
+  // Re-decode from the shape as stored, in case it changed since completion.
   const scale = draw.props.scale
   const points = getPointsFromDrawSegments(draw.props.segments, scale, scale)
   const result = recognizeInk(points, { zoom: editor.getZoomLevel() })
@@ -40,6 +42,7 @@ function snapCompletedStroke(editor: Editor, id: TLShapeId): void {
       type: 'geo',
       x: draw.x + result.x,
       y: draw.y + result.y,
+      opacity: draw.opacity,
       props: {
         geo: 'ellipse',
         w: result.w,
@@ -51,12 +54,5 @@ function snapCompletedStroke(editor: Editor, id: TLShapeId): void {
       },
     })
   })
-  onSnap?.()
-}
-
-// The Bridge ticket replaces this with the haptic message; kept as a module
-// hook so wiring stays testable without one.
-let onSnap: (() => void) | undefined
-export function setOnSnap(handler: (() => void) | undefined): void {
-  onSnap = handler
+  options.onSnap?.()
 }

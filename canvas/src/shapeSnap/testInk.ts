@@ -1,4 +1,4 @@
-// Deterministic synthetic Ink strokes for recognizer tests. Real device
+// Deterministic synthetic Ink for recognizer tests. Real device
 // fixtures (recorded via the stroke capture path) live in fixtures/*.json.
 import type { InkPoint } from './recognize'
 

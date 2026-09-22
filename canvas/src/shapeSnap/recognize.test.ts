@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { recognizeInk, type InkPoint } from './recognize'
-import { roughEllipse, roughRectangle, straightLine, zigzagScribble } from './testStrokes'
+import { roughEllipse, roughRectangle, straightLine, zigzagScribble } from './testInk'
 
 describe('recognizeInk — ellipse', () => {
   it('recognizes a clean circle', () => {
