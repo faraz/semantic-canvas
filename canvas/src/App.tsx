@@ -10,6 +10,7 @@ import {
 } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { assetUrls } from './assetUrls'
+import { postShapeSnapped } from './bridge'
 import { clearBoard } from './clearBoard'
 import { wireShapeSnap } from './shapeSnap/wire'
 import { wireInkCapture } from './shapeSnap/capture'
@@ -33,7 +34,7 @@ function MainMenu() {
 const components: TLComponents = { MainMenu }
 
 function mount(editor: Editor) {
-  const disposeSnap = wireShapeSnap(editor)
+  const disposeSnap = wireShapeSnap(editor, { onSnap: postShapeSnapped })
   const disposeCapture = wireInkCapture(editor)
   return () => {
     disposeSnap()
