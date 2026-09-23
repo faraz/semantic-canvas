@@ -29,6 +29,7 @@ describe('the session-UI store', () => {
       hosting: true,
       port: 8787,
       hostname: 'Farazs-iPad',
+      ip: null,
       error: null,
     })
   })
@@ -85,8 +86,14 @@ describe('the session-UI store', () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
-  it('builds the .local join URL Guests open', () => {
-    expect(joinUrl({ hostname: 'Farazs-iPad', port: 8787 })).toBe(
+  it('builds the join URL from the IP when the Shell reports one', () => {
+    expect(joinUrl({ hostname: 'Farazs-iPad', port: 8787, ip: '192.168.1.23' })).toBe(
+      'http://192.168.1.23:8787'
+    )
+  })
+
+  it('falls back to the .local name without an IP', () => {
+    expect(joinUrl({ hostname: 'Farazs-iPad', port: 8787, ip: null })).toBe(
       'http://Farazs-iPad.local:8787'
     )
   })

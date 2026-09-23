@@ -83,6 +83,7 @@ final class BridgeCoordinator: NSObject, WKScriptMessageHandler, WKNavigationDel
                             "event": "sessionStarted",
                             "port": Int(SessionServer.port),
                             "hostname": hostname,
+                            "ip": SessionServer.wifiIPv4() ?? NSNull(),
                         ],
                         to: webView
                     )
@@ -127,6 +128,7 @@ final class BridgeCoordinator: NSObject, WKScriptMessageHandler, WKNavigationDel
                             "event": "sessionStarted",
                             "port": Int(SessionServer.port),
                             "hostname": hostname,
+                            "ip": SessionServer.wifiIPv4() ?? NSNull(),
                         ],
                         to: webView
                     )

@@ -5,7 +5,7 @@
 // Shell's Bridge session events. The menu action only posts the Bridge
 // request; the Shell's answer drives the Session lifecycle module through
 // the same Bridge events (session/appSession.wireSessionToBridge, #28).
-import { useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { TldrawUiMenuItem } from 'tldraw'
 import {
   postStartSessionRequested,
@@ -38,23 +38,61 @@ export function SessionMenuItem() {
   )
 }
 
+// Copies via the async clipboard API where allowed, falling back to the
+// execCommand path (WKWebView on file:// can be picky about the former).
+function copyText(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => copyViaTextarea(text))
+  }
+  copyViaTextarea(text)
+  return Promise.resolve()
+}
+
+function copyViaTextarea(text: string): void {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand('copy')
+  textarea.remove()
+}
+
 // Join panel while hosting; a quiet error strip when the Shell reports a
-// session error. Mounted in tldraw's InFrontOfTheCanvas slot (Stage Presence
-// leaves it free); positioned top-center, clear of the menu zone (top-left),
-// style panel (top-right), dock (bottom), and shape rail (right edge).
+// session error. Mounted in tldraw's InFrontOfTheCanvas slot; compact card
+// in the bottom-right corner (device feedback), clear of the dock (bottom
+// center), shape rail (right edge, vertically centered), and style panel
+// (top right). Tapping the card copies the join URL.
 export function SessionJoinPanel() {
   const session = useSessionUi()
+  const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(copiedTimer.current), [])
+
   if (session.hosting) {
     const url = joinUrl(session)
+    const copyUrl = () => {
+      void copyText(url).then(() => {
+        setCopied(true)
+        clearTimeout(copiedTimer.current)
+        copiedTimer.current = setTimeout(() => setCopied(false), 1500)
+      })
+    }
     return (
-      <div className="sc-session-panel" data-testid="session-join-panel">
-        <div className="sc-session-panel__title">Session live — scan to join</div>
+      <button
+        type="button"
+        className="sc-session-panel"
+        data-testid="session-join-panel"
+        onClick={copyUrl}
+        title="Copy join address"
+      >
         <div className="sc-session-panel__qr">
           <QrSvg text={url} />
         </div>
-        {/* Selectable so the URL can be read out or copied by hand. */}
-        <div className="sc-session-panel__url">{url}</div>
-      </div>
+        <div className="sc-session-panel__url">{copied ? 'Copied' : url}</div>
+      </button>
     )
   }
   if (session.error !== null) {

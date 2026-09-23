@@ -15,7 +15,7 @@ export type BridgeMessage =
 // Shell→Canvas. Session state as the Shell's server reports it; `hostname`
 // is the device's bare mDNS name (no ".local" suffix, no scheme).
 export type BridgeReceiveMessage =
-  | { v: 1; event: 'sessionStarted'; port: number; hostname: string }
+  | { v: 1; event: 'sessionStarted'; port: number; hostname: string; ip?: string | null }
   | { v: 1; event: 'sessionStopped' }
   | { v: 1; event: 'sessionError'; message: string }
 
@@ -67,7 +67,11 @@ function isBridgeReceiveMessage(message: unknown): message is BridgeReceiveMessa
   if (m.v !== 1) return false
   switch (m.event) {
     case 'sessionStarted':
-      return typeof m.port === 'number' && typeof m.hostname === 'string'
+      return (
+        typeof m.port === 'number' &&
+        typeof m.hostname === 'string' &&
+        (typeof m.ip === 'string' || m.ip === null || m.ip === undefined)
+      )
     case 'sessionStopped':
       return true
     case 'sessionError':

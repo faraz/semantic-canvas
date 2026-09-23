@@ -17,7 +17,7 @@ import { onBridgeMessage, type BridgeReceiveMessage } from './bridge'
 
 export type SessionUiState =
   | { hosting: false; error: string | null }
-  | { hosting: true; port: number; hostname: string; error: null }
+  | { hosting: true; port: number; hostname: string; ip: string | null; error: null }
 
 const IDLE: SessionUiState = { hosting: false, error: null }
 
@@ -40,9 +40,15 @@ export function subscribeSessionUi(listener: () => void): () => void {
   }
 }
 
-// The join URL Guests open; hostname is the bare mDNS name from the Shell.
-export function joinUrl(session: { hostname: string; port: number }): string {
-  return `http://${session.hostname}.local:${session.port}`
+// The join URL Guests open: the Wi-Fi IP when the Shell reports one (works
+// on networks where mDNS is filtered), else the bare mDNS name.
+export function joinUrl(session: {
+  hostname: string
+  port: number
+  ip?: string | null
+}): string {
+  const host = session.ip ?? `${session.hostname}.local`
+  return `http://${host}:${session.port}`
 }
 
 // Exported for tests (and as the single reducer entry point).
@@ -53,6 +59,7 @@ export function applyBridgeSessionMessage(message: BridgeReceiveMessage): void {
         hosting: true,
         port: message.port,
         hostname: message.hostname,
+        ip: message.ip ?? null,
         error: null,
       }
       break

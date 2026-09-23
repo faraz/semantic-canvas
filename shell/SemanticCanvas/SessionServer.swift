@@ -116,6 +116,31 @@ final class SessionServer {
         return sanitizedDeviceName()
     }
 
+    /// The device's Wi-Fi IPv4 address (en0), if any — Guests join by IP
+    /// (more reliable than .local across managed networks); the hostname
+    /// stays the fallback when Wi-Fi has no address.
+    static func wifiIPv4() -> String? {
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0, let first = ifaddr else { return nil }
+        defer { freeifaddrs(ifaddr) }
+        for ptr in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            let ifa = ptr.pointee
+            guard let sa = ifa.ifa_addr,
+                sa.pointee.sa_family == UInt8(AF_INET),
+                String(cString: ifa.ifa_name) == "en0"
+            else { continue }
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            if getnameinfo(
+                sa, socklen_t(sa.pointee.sa_len),
+                &host, socklen_t(host.count),
+                nil, 0, NI_NUMERICHOST
+            ) == 0 {
+                return String(cString: host)
+            }
+        }
+        return nil
+    }
+
     /// True only for loopback peers, judged by the socket's own address —
     /// never by spoofable headers.
     nonisolated static func isLoopback(_ address: HTTPRequest.Address?) -> Bool {
