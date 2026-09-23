@@ -69,7 +69,12 @@ type PenToolChanged = Extract<BridgeReceiveMessage, { event: 'penToolChanged' }>
 export function applyPenTool(editor: Editor, message: PenToolChanged): void {
   switch (message.kind) {
     case 'ink': {
-      const tool = message.inkType === 'marker' ? 'highlight' : 'draw'
+      // inkType is the leaf of PencilKit's reverse-DNS raw value; match
+      // loosely so an OS rename degrades to the draw tool, never a no-op.
+      const inkType = message.inkType.toLowerCase()
+      const tool = inkType.includes('marker') || inkType.includes('highlight')
+        ? 'highlight'
+        : 'draw'
       editor.setCurrentTool(tool)
       editor.setStyleForNextShapes(DefaultColorStyle, nearestTldrawColor(message.colorHex))
       editor.setStyleForNextShapes(DefaultSizeStyle, sizeBucket(message.width))
@@ -88,6 +93,34 @@ export function applyPenTool(editor: Editor, message: PenToolChanged): void {
 
 export function wirePenPalette(editor: Editor): () => void {
   return onBridgeMessage((message) => {
-    if (message.event === 'penToolChanged') applyPenTool(editor, message)
+    if (message.event !== 'penToolChanged') return
+    debugToast(message)
+    applyPenTool(editor, message)
   })
+}
+
+// TEMP DEBUG (#30 device diagnosis): flashes each palette message on screen
+// so a silent Shell (no toast) is distinguishable from a mapping fault
+// (toast but wrong behavior). Remove once the palette is verified on device.
+let toastEl: HTMLDivElement | null = null
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+function debugToast(message: PenToolChanged): void {
+  if (typeof document === 'undefined') return
+  if (!toastEl) {
+    toastEl = document.createElement('div')
+    toastEl.style.cssText =
+      'position:fixed;left:50%;bottom:96px;transform:translateX(-50%);' +
+      'z-index:99999;padding:6px 12px;border-radius:8px;background:rgba(0,0,0,.75);' +
+      'color:#fff;font:12px ui-monospace,monospace;pointer-events:none'
+    document.body.appendChild(toastEl)
+  }
+  toastEl.textContent =
+    message.kind === 'ink'
+      ? `pen: ${message.inkType} ${message.colorHex} w=${message.width.toFixed(1)}`
+      : `pen: ${message.kind}`
+  toastEl.style.display = 'block'
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    if (toastEl) toastEl.style.display = 'none'
+  }, 2000)
 }

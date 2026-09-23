@@ -21,6 +21,7 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
     private var wired = false
     private var wantsPaletteVisible = true
     private var keyboardUp = false
+    private var reclaimTimer: Timer?
 
     init(webView: WKWebView) {
         self.webView = webView
@@ -51,7 +52,10 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    deinit { NotificationCenter.default.removeObserver(self) }
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        reclaimTimer?.invalidate()
+    }
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
@@ -60,6 +64,19 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
         picker.addObserver(self)
         picker.showsDrawingPolicyControls = false
         setPaletteVisible(wantsPaletteVisible)
+        // Push the palette's initial selection so the Canvas starts mapped
+        // without waiting for the first change.
+        sendCurrentSelection()
+        // DTS guidance: visibility callbacks are sparse — poll. If anything
+        // steals first responder from every registered view (e.g. WebKit's
+        // internal content view on a web-button tap), quietly take it back.
+        reclaimTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) {
+            [weak self] _ in
+            guard let self, self.wantsPaletteVisible, !self.keyboardUp,
+                self.window != nil, !self.picker.isVisible
+            else { return }
+            self.responderHost.becomeFirstResponder()
+        }
     }
 
     /// Bridge control: the Canvas's "Pencil palette" toggle. Registers BOTH
@@ -91,17 +108,14 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
 
     // MARK: PKToolPickerObserver
 
-    /// Recovery: if the palette hides while it is supposed to be visible and
-    /// no keyboard is up (some interaction stole first responder from every
-    /// registered view), quietly reclaim. The iPad palette has no close
-    /// control of its own, so an unwanted hide is the only false positive.
-    func toolPickerVisibilityDidChange(_ toolPicker: PKToolPicker) {
-        guard !toolPicker.isVisible, wantsPaletteVisible, !keyboardUp, window != nil
-        else { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.wantsPaletteVisible, !self.keyboardUp else { return }
-            self.responderHost.becomeFirstResponder()
-        }
+    func sendCurrentSelection() {
+        toolPickerSelectedToolItemDidChange(picker)
+    }
+
+    /// Older observer callback — some OS paths still fire only this one;
+    /// the mapping is idempotent, so double delivery is harmless.
+    func toolPickerSelectedToolDidChange(_ toolPicker: PKToolPicker) {
+        sendLegacyToolChange(toolPicker)
     }
 
     func toolPickerSelectedToolItemDidChange(_ toolPicker: PKToolPicker) {
@@ -137,11 +151,13 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
     }
 
     private func inkMessage(for tool: PKInkingTool) -> [String: Any] {
-        [
+        // Raw values are reverse-DNS ("com.apple.ink.pen"); ship the leaf.
+        let leaf = tool.inkType.rawValue.split(separator: ".").last.map(String.init)
+        return [
             "v": 1,
             "event": "penToolChanged",
             "kind": "ink",
-            "inkType": tool.inkType.rawValue,
+            "inkType": leaf ?? tool.inkType.rawValue,
             "colorHex": hex(tool.color),
             "width": Double(tool.width),
         ]
