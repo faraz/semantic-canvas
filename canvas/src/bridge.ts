@@ -1,12 +1,27 @@
 // The Bridge: the typed, versioned message channel between Canvas and Shell.
-// Canvas→Shell only in MVP. The designated first future Shell→Canvas message
-// is the tldraw license key (see the licensing research); it will reuse this
-// versioned { v, event } scheme.
+//
+// Canvas→Shell rides webkit.messageHandlers.bridge.postMessage. Shell→Canvas
+// rides evaluateJavaScript into window.__bridgeReceive, a global this module
+// installs — the Session state events below are the Bridge's first
+// Shell→Canvas messages. Both directions reuse the versioned { v, event }
+// scheme; unknown or malformed messages are dropped silently on both sides.
 
-export type BridgeMessage = { v: 1; event: 'shapeSnapped' }
+// Canvas→Shell.
+export type BridgeMessage =
+  | { v: 1; event: 'shapeSnapped' }
+  | { v: 1; event: 'startSessionRequested' }
+  | { v: 1; event: 'stopSessionRequested' }
+
+// Shell→Canvas. Session state as the Shell's server reports it; `hostname`
+// is the device's bare mDNS name (no ".local" suffix, no scheme).
+export type BridgeReceiveMessage =
+  | { v: 1; event: 'sessionStarted'; port: number; hostname: string }
+  | { v: 1; event: 'sessionStopped' }
+  | { v: 1; event: 'sessionError'; message: string }
 
 // The webkit surface the Shell's WKWebView injects; absent in browsers and
-// tests, hence optional at every level.
+// tests, hence optional at every level. __bridgeReceive is the Canvas-owned
+// entry point the Shell calls via evaluateJavaScript.
 declare global {
   interface Window {
     webkit?: {
@@ -14,6 +29,7 @@ declare global {
         bridge?: { postMessage(message: BridgeMessage): void }
       }
     }
+    __bridgeReceive?: (message: unknown) => void
   }
 }
 
@@ -26,4 +42,57 @@ function post(message: BridgeMessage): void {
 // Tells the Shell a Shape Snap landed, so it can answer with the haptic.
 export function postShapeSnapped(): void {
   post({ v: 1, event: 'shapeSnapped' })
+}
+
+// Asks the Shell to start hosting a Session (start the server); the Shell
+// answers with sessionStarted or sessionError.
+export function postStartSessionRequested(): void {
+  post({ v: 1, event: 'startSessionRequested' })
+}
+
+// Asks the Shell to stop hosting; the Shell answers with sessionStopped.
+export function postStopSessionRequested(): void {
+  post({ v: 1, event: 'stopSessionRequested' })
+}
+
+// ---- Shell→Canvas receive path -----------------------------------------
+
+const receivers = new Set<(message: BridgeReceiveMessage) => void>()
+
+// The Shell sends plain JSON; validate the whole shape before dispatch so a
+// version bump or malformed payload degrades to a dropped message.
+function isBridgeReceiveMessage(message: unknown): message is BridgeReceiveMessage {
+  if (typeof message !== 'object' || message === null) return false
+  const m = message as Record<string, unknown>
+  if (m.v !== 1) return false
+  switch (m.event) {
+    case 'sessionStarted':
+      return typeof m.port === 'number' && typeof m.hostname === 'string'
+    case 'sessionStopped':
+      return true
+    case 'sessionError':
+      return typeof m.message === 'string'
+    default:
+      return false
+  }
+}
+
+function installReceiveGlobal(): void {
+  if (typeof window === 'undefined' || window.__bridgeReceive) return
+  window.__bridgeReceive = (message: unknown) => {
+    if (!isBridgeReceiveMessage(message)) return
+    for (const receiver of [...receivers]) receiver(message)
+  }
+}
+
+// Subscribes to Shell→Canvas messages; installs window.__bridgeReceive on
+// first use. Returns the unsubscriber.
+export function onBridgeMessage(
+  receiver: (message: BridgeReceiveMessage) => void
+): () => void {
+  installReceiveGlobal()
+  receivers.add(receiver)
+  return () => {
+    receivers.delete(receiver)
+  }
 }

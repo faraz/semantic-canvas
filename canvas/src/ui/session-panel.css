@@ -1,0 +1,63 @@
+/*
+ * Session join panel, mounted in tldraw's InFrontOfTheCanvas slot.
+ *
+ * Follows the Stage Presence visual rule: a solid panel with the 2px ink
+ * ring as its silhouette (rings survive video compression; shadows are
+ * support only). Uses tldraw theme tokens directly so the panel is correct
+ * even if the Stage Presence variant class ever isn't mounted; the QR card
+ * itself stays black-on-white in both color schemes for scanability.
+ */
+
+.sc-session-panel {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--tl-zindex-panels, 300);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 14px;
+  border-radius: 16px;
+  background: var(--tl-color-panel);
+  color: var(--tl-color-text);
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.22),
+    var(--tl-shadow-3);
+  pointer-events: all;
+}
+
+.sc-session-panel__title {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sc-session-panel__qr {
+  border-radius: 8px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.sc-session-panel__qr-svg {
+  width: 176px;
+  height: 176px;
+  display: block;
+}
+
+/* Selectable: tldraw's chrome disables selection globally; the join URL is
+   the one string a person may need to read out or retype. */
+.sc-session-panel__url {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.sc-session-panel--error {
+  box-shadow:
+    0 0 0 2px var(--tl-color-warn, #d10b0b),
+    var(--tl-shadow-3);
+}

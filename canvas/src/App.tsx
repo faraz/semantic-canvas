@@ -19,7 +19,7 @@ import { wireInkCapture } from './shapeSnap/capture'
 import { wireIllustrationSnap } from './illustrationSnap/wire'
 import { wireTemplateCapture } from './illustrationSnap/capture'
 import { QuickActions, SnapToggleMenuItem } from './snapToggle'
-import { probeLoopbackWebSocket } from './session/spikeLoopback'
+import { SessionJoinPanel, SessionMenuItem } from './ui/sessionPanel'
 
 function MainMenu() {
   const editor = useEditor()
@@ -32,6 +32,7 @@ function MainMenu() {
           onSelect={() => clearBoard(editor)}
         />
         <SnapToggleMenuItem />
+        <SessionMenuItem />
       </TldrawUiMenuGroup>
       <TabletMainMenuContent />
     </DefaultMainMenu>
@@ -47,10 +48,11 @@ const components: TLComponents = {
   // No hardware keyboard in the meeting flow; nulling the dialog also makes
   // tldraw's KeyboardShortcutsMenuItem render nothing everywhere.
   KeyboardShortcutsDialog: null,
+  // The Session join panel (QR + .local URL), visible while hosting.
+  InFrontOfTheCanvas: SessionJoinPanel,
 }
 
 function mount(editor: Editor) {
-  probeLoopbackWebSocket() // SPIKE #25, removed by #27
   const illustrationSnap = wireIllustrationSnap(editor, { onSnap: postShapeSnapped })
   const disposeSnap = wireShapeSnap(editor, {
     onSnap: postShapeSnapped,
