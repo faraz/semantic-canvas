@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		035335B8F85BC5ADB4E714D6 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 4881B637483DE9EDB2CD2800 /* FlyingFox */; };
 		536DD5B7605BD2578E436805 /* SessionServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B926A3718BD3E7DF59813AC3 /* SessionServer.swift */; };
+		723A01321174A555712FC636 /* PenPaletteProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5EB8917C759B6D4148ADFDF /* PenPaletteProbe.swift */; };
 		9B9767C412BC0ECD49CB7C64 /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 783111793B28107816B466DA /* index.html */; };
 		A2BDA0208CAC3493E81AED2D /* CanvasHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */; };
 		A983AE6FFD919D4EF062A36F /* SemanticCanvasApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */; };
@@ -19,6 +20,7 @@
 		34EBEF749BA0260A8DD6B464 /* SemanticCanvas.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SemanticCanvas.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasHostView.swift; sourceTree = "<group>"; };
 		783111793B28107816B466DA /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
+		B5EB8917C759B6D4148ADFDF /* PenPaletteProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PenPaletteProbe.swift; sourceTree = "<group>"; };
 		B926A3718BD3E7DF59813AC3 /* SessionServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionServer.swift; sourceTree = "<group>"; };
 		BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SemanticCanvasApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -41,6 +43,7 @@
 				64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */,
 				783111793B28107816B466DA /* index.html */,
 				167AB77F1FCDA5BD3214BF1C /* Info.plist */,
+				B5EB8917C759B6D4148ADFDF /* PenPaletteProbe.swift */,
 				BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */,
 				B926A3718BD3E7DF59813AC3 /* SessionServer.swift */,
 			);
@@ -140,6 +143,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A2BDA0208CAC3493E81AED2D /* CanvasHostView.swift in Sources */,
+				723A01321174A555712FC636 /* PenPaletteProbe.swift in Sources */,
 				A983AE6FFD919D4EF062A36F /* SemanticCanvasApp.swift in Sources */,
 				536DD5B7605BD2578E436805 /* SessionServer.swift in Sources */,
 			);

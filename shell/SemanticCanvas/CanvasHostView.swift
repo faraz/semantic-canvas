@@ -4,7 +4,7 @@ import WebKit
 struct CanvasHostView: UIViewRepresentable {
     func makeCoordinator() -> BridgeCoordinator { BridgeCoordinator() }
 
-    func makeUIView(context: Context) -> WKWebView {
+    func makeUIView(context: Context) -> UIView {
         let config = WKWebViewConfiguration()
         // Persistent store: the Board's local persistence (tldraw IndexedDB)
         // must survive relaunch.
@@ -38,10 +38,17 @@ struct CanvasHostView: UIViewRepresentable {
 
         let url = Bundle.main.url(forResource: "index", withExtension: "html")!
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-        return webView
+
+        #if DEBUG
+            // PROTOTYPE pen-palette-probe (#23): wraps the webview with the
+            // PKToolPicker host + on-screen observer log.
+            return PenProbeContainer(webView: webView)
+        #else
+            return webView
+        #endif
     }
 
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
 // The Bridge's Shell→Canvas leg: versioned { v, event } messages delivered
