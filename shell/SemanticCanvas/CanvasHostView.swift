@@ -26,6 +26,11 @@ struct CanvasHostView: UIViewRepresentable {
             }
         #endif
 
+        #if DEBUG
+            // SPIKE (#25): loopback WS echo the Canvas probes on load.
+            SpikeLoopbackServer.shared.start()
+        #endif
+
         let url = Bundle.main.url(forResource: "index", withExtension: "html")!
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         return webView

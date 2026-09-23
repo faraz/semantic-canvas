@@ -19,6 +19,7 @@ import { wireInkCapture } from './shapeSnap/capture'
 import { wireIllustrationSnap } from './illustrationSnap/wire'
 import { wireTemplateCapture } from './illustrationSnap/capture'
 import { QuickActions, SnapToggleMenuItem } from './snapToggle'
+import { probeLoopbackWebSocket } from './session/spikeLoopback'
 
 function MainMenu() {
   const editor = useEditor()
@@ -49,6 +50,7 @@ const components: TLComponents = {
 }
 
 function mount(editor: Editor) {
+  probeLoopbackWebSocket() // SPIKE #25, removed by #27
   const illustrationSnap = wireIllustrationSnap(editor, { onSnap: postShapeSnapped })
   const disposeSnap = wireShapeSnap(editor, {
     onSnap: postShapeSnapped,

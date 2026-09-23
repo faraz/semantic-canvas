@@ -7,17 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		035335B8F85BC5ADB4E714D6 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 4881B637483DE9EDB2CD2800 /* FlyingFox */; };
+		7CF0683349290AA006EFC4BE /* SpikeLoopbackServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8FA4BA860CA4F485D8B69F7 /* SpikeLoopbackServer.swift */; };
 		9B9767C412BC0ECD49CB7C64 /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 783111793B28107816B466DA /* index.html */; };
 		A2BDA0208CAC3493E81AED2D /* CanvasHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */; };
 		A983AE6FFD919D4EF062A36F /* SemanticCanvasApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		167AB77F1FCDA5BD3214BF1C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		34EBEF749BA0260A8DD6B464 /* SemanticCanvas.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SemanticCanvas.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasHostView.swift; sourceTree = "<group>"; };
 		783111793B28107816B466DA /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SemanticCanvasApp.swift; sourceTree = "<group>"; };
+		D8FA4BA860CA4F485D8B69F7 /* SpikeLoopbackServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeLoopbackServer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7E2F5FBB7B3C701CE7591ECD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				035335B8F85BC5ADB4E714D6 /* FlyingFox in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		315FD8B3AD43251CD78E3E55 /* SemanticCanvas */ = {
@@ -25,7 +40,9 @@
 			children = (
 				64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */,
 				783111793B28107816B466DA /* index.html */,
+				167AB77F1FCDA5BD3214BF1C /* Info.plist */,
 				BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */,
+				D8FA4BA860CA4F485D8B69F7 /* SpikeLoopbackServer.swift */,
 			);
 			path = SemanticCanvas;
 			sourceTree = "<group>";
@@ -55,6 +72,7 @@
 			buildPhases = (
 				F2D57736AF0ACBBCB1B9C492 /* Sources */,
 				F94AB1367ED82C5D5A595512 /* Resources */,
+				7E2F5FBB7B3C701CE7591ECD /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -62,6 +80,7 @@
 			);
 			name = SemanticCanvas;
 			packageProductDependencies = (
+				4881B637483DE9EDB2CD2800 /* FlyingFox */,
 			);
 			productName = SemanticCanvas;
 			productReference = 34EBEF749BA0260A8DD6B464 /* SemanticCanvas.app */;
@@ -91,6 +110,9 @@
 			);
 			mainGroup = E194527B9F81C248B432E00F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6691315C6FD0E9C8B5589CA6 /* XCRemoteSwiftPackageReference "FlyingFox" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E0BE6843EA75ADE6FB140B02 /* Products */;
 			projectDirPath = "";
@@ -119,6 +141,7 @@
 			files = (
 				A2BDA0208CAC3493E81AED2D /* CanvasHostView.swift in Sources */,
 				A983AE6FFD919D4EF062A36F /* SemanticCanvasApp.swift in Sources */,
+				7CF0683349290AA006EFC4BE /* SpikeLoopbackServer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -132,11 +155,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = XY3PBJHX4Y;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIRequiresFullScreen = YES;
-				INFOPLIST_KEY_UIStatusBarHidden = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_FILE = SemanticCanvas/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -218,11 +237,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = XY3PBJHX4Y;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIRequiresFullScreen = YES;
-				INFOPLIST_KEY_UIStatusBarHidden = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_FILE = SemanticCanvas/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -312,6 +327,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6691315C6FD0E9C8B5589CA6 /* XCRemoteSwiftPackageReference "FlyingFox" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swhitty/FlyingFox";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.20.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4881B637483DE9EDB2CD2800 /* FlyingFox */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6691315C6FD0E9C8B5589CA6 /* XCRemoteSwiftPackageReference "FlyingFox" */;
+			productName = FlyingFox;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A9A012E2AEFC992166DEE76E /* Project object */;
 }
