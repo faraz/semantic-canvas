@@ -30,6 +30,12 @@ struct CanvasHostView: UIViewRepresentable {
         // server never keeps the web view alive).
         SessionServer.shared.webView = webView
 
+        #if DEBUG
+            // Test seam: navigation delegate for the launch-argument
+            // auto-start below (simulator probes can't tap the menu).
+            webView.navigationDelegate = context.coordinator
+        #endif
+
         let url = Bundle.main.url(forResource: "index", withExtension: "html")!
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         return webView
@@ -58,7 +64,38 @@ enum Bridge {
 // behaviors are answering a Shape Snap with the canvas-feedback haptic and
 // forwarding Session requests to the SessionServer, reporting the outcome
 // back. Unknown or malformed messages are ignored silently.
-final class BridgeCoordinator: NSObject, WKScriptMessageHandler {
+final class BridgeCoordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    #if DEBUG
+        /// DEBUG-only test seam: `simctl launch <udid> dev.frwd.SemanticCanvas
+        /// -SCStartSessionOnLaunch` starts a Session the moment the Canvas
+        /// loads, exactly as if the menu action had been tapped — so the
+        /// serve/relay loop can be probed from the Mac side without UI
+        /// automation. Absent the argument this does nothing.
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard ProcessInfo.processInfo.arguments.contains("-SCStartSessionOnLaunch")
+            else { return }
+            Task { @MainActor in
+                do {
+                    let hostname = try await SessionServer.shared.start()
+                    Bridge.send(
+                        [
+                            "v": 1,
+                            "event": "sessionStarted",
+                            "port": Int(SessionServer.port),
+                            "hostname": hostname,
+                        ],
+                        to: webView
+                    )
+                } catch {
+                    Bridge.send(
+                        ["v": 1, "event": "sessionError", "message": error.localizedDescription],
+                        to: webView
+                    )
+                }
+            }
+        }
+    #endif
+
     func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage

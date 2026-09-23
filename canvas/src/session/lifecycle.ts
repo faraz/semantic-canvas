@@ -5,8 +5,10 @@
 // Session boundaries is accepted per spec #24).
 //
 // Recovery: a shadow snapshot is written before each transition — before the
-// room is created on start, before it is closed on stop — so a crash mid-
-// Session can replay the last known Board state.
+// room is created on start, before it is closed on stop — and, throttled,
+// after each room change while hosting, so a crash mid-Session can replay
+// the last known Board state. The App consumes a leftover shadow on launch
+// (see appSession.registerSessionEditor) and clears it after a clean stop.
 import type { RoomSnapshot } from '@tldraw/sync-core'
 import type { TLStoreSnapshot } from 'tldraw'
 import { roomSnapshotFromStoreSnapshot, storeSnapshotFromRoomSnapshot } from './migration'
@@ -29,7 +31,7 @@ export function nextPhase(phase: SessionPhase, transition: SessionTransition): S
 }
 
 export interface SessionShadow {
-  boundary: 'start' | 'stop'
+  boundary: 'start' | 'live' | 'stop'
   writtenAt: number
   snapshot: RoomSnapshot
 }
@@ -93,11 +95,34 @@ export interface SessionLifecycle {
   clearShadow(): void
 }
 
+// While hosting, room changes refresh the shadow at most this often — the
+// storage's own notification is already microtask-coalesced, but live
+// drawing still changes the room every frame, and each write serializes the
+// whole Board.
+export const LIVE_SHADOW_THROTTLE_MS = 1000
+
 export function createSessionLifecycle(opts: SessionLifecycleOptions = {}): SessionLifecycle {
-  const makeRoom =
-    opts.createRoom ?? ((initialSnapshot: RoomSnapshot) => createSessionRoom({ initialSnapshot }))
   const shadow = opts.shadow ?? localStorageShadowStore()
   const now = opts.now ?? Date.now
+  const makeRoom =
+    opts.createRoom ??
+    ((initialSnapshot: RoomSnapshot) => {
+      // Live shadow write-through: every room change (Guest edits included)
+      // refreshes the recovery shadow, trailing-throttled.
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const liveRoom: SessionRoom = createSessionRoom({
+        initialSnapshot,
+        onChange: () => {
+          if (timer !== null) return
+          timer = setTimeout(() => {
+            timer = null
+            if (liveRoom.isClosed()) return
+            shadow.write({ boundary: 'live', writtenAt: now(), snapshot: liveRoom.getSnapshot() })
+          }, LIVE_SHADOW_THROTTLE_MS)
+        },
+      })
+      return liveRoom
+    })
 
   let phase: SessionPhase = 'solo'
   let room: SessionRoom | null = null

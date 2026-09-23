@@ -2,11 +2,12 @@
 // action render, driven purely by the Shell's Bridge session events
 // (sessionStarted / sessionStopped / sessionError).
 //
-// Deliberately NOT the Session lifecycle module (canvas/src/session/, issue
-// #26 — room hosting, snapshot migration, window.__session): this store only
-// mirrors what the Shell reports so the UI can render. The menu action posts
-// Bridge requests and nothing else; #28 wires the Shell's answers into the
-// session module proper and merges these seams.
+// Deliberately NOT the Session lifecycle module (canvas/src/session/): this
+// store only mirrors what the Shell reports so the UI can render. The Bridge
+// itself is the one source of truth — the session module subscribes to the
+// same events to run the room and the Guest relay hub (#28, see
+// session/appSession.wireSessionToBridge); the menu action posts Bridge
+// requests and nothing else.
 //
 // Framework-free; React subscribes via useSyncExternalStore. The store
 // self-wires to the Bridge on first subscription, which also installs

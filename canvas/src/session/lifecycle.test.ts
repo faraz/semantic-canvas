@@ -2,12 +2,13 @@
 // migration choreography — shadow written before each boundary, room seeded
 // from the solo Board, Board returned intact on stop. Room and shadow are
 // faked here; the real-room migration round-trip lives in migration.test.ts.
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RoomSnapshot } from '@tldraw/sync-core'
 import { createTLSchema, DocumentRecordType, TLDOCUMENT_ID } from '@tldraw/tlschema'
 import type { TLStoreSnapshot } from 'tldraw'
 import {
   createSessionLifecycle,
+  LIVE_SHADOW_THROTTLE_MS,
   localStorageShadowStore,
   nextPhase,
   type SessionPhase,
@@ -162,6 +163,57 @@ describe('session lifecycle controller', () => {
     expect(lifecycle.getRoom()).toBeNull()
     // The shadow was still written first — the Board stays recoverable.
     expect(log).toEqual(['shadow:start'])
+  })
+})
+
+describe('live shadow write-through (#28, default room)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('refreshes the shadow while the room changes, throttled, and stops after close', async () => {
+    vi.useFakeTimers()
+    const log: string[] = []
+    const shadow = makeFakeShadow(log)
+    const lifecycle = createSessionLifecycle({ shadow, now: () => 1234 })
+    const room = lifecycle.start(soloSnapshot())
+
+    // A connected session pushing a change — the wire moves the real room.
+    room.attach('g', { readyState: 1, send: () => {}, close: () => {} })
+    room.handleMessage(
+      'g',
+      JSON.stringify({
+        type: 'connect',
+        connectRequestId: 'req-g',
+        lastServerClock: 0,
+        protocolVersion: 8,
+        schema: createTLSchema().serialize(),
+      })
+    )
+    const renamed = {
+      ...DocumentRecordType.create({ id: TLDOCUMENT_ID }),
+      name: 'drawn mid-Session',
+    }
+    room.handleMessage(
+      'g',
+      JSON.stringify({ type: 'push', clientClock: 1, diff: { [TLDOCUMENT_ID]: ['put', renamed] } })
+    )
+
+    // Not yet — the write-through trails by the throttle window.
+    await vi.advanceTimersByTimeAsync(LIVE_SHADOW_THROTTLE_MS - 1)
+    expect(log.filter((l) => l === 'shadow:live')).toHaveLength(0)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(log.filter((l) => l === 'shadow:live')).toHaveLength(1)
+    const live = shadow.entries[shadow.entries.length - 1]
+    expect(live).toMatchObject({ boundary: 'live', writtenAt: 1234 })
+    expect(JSON.stringify(live.snapshot.documents)).toContain('drawn mid-Session')
+
+    // After stop, a straggling throttle timer must not write again.
+    lifecycle.stop()
+    const writes = log.length
+    await vi.advanceTimersByTimeAsync(LIVE_SHADOW_THROTTLE_MS * 3)
+    expect(log.length).toBe(writes)
   })
 })
 

@@ -3,8 +3,8 @@
 //
 // Both render from the session-UI store (../sessionUi.ts), which mirrors the
 // Shell's Bridge session events. The menu action only posts the Bridge
-// request — it does NOT touch the Session lifecycle module (#26's
-// window.__session); #28 wires the two together.
+// request; the Shell's answer drives the Session lifecycle module through
+// the same Bridge events (session/appSession.wireSessionToBridge, #28).
 import { useMemo, useSyncExternalStore } from 'react'
 import { TldrawUiMenuItem } from 'tldraw'
 import {

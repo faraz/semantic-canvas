@@ -6,10 +6,9 @@ import WebKit
 ///
 /// - `GET /`     → the bundled single-file Canvas, so a Guest's Mac browser
 ///                 loads the exact bundle the iPad runs (no version skew).
-/// - `WS /sync`  → Guest connections. This ticket accepts and holds them;
-///                 the frame relay to the room lands in #28.
-/// - `WS /host`  → the loopback channel the Canvas page opens; the relay
-///                 hub #28 shuttles Guest frames through.
+/// - `WS /sync`  → Guest connections, relayed to the room as envelopes.
+/// - `WS /host`  → the loopback channel the Canvas page opens (#28); the
+///                 relay shuttles Guest frames through it, loopback-only.
 ///
 /// The Shell stays thin: no product logic here — only serving, the relay
 /// plumbing, and hosting lifecycle (screen kept awake while live, teardown
@@ -57,7 +56,16 @@ final class SessionServer {
             )
         }
         await server.appendRoute("GET /sync", to: .webSocket(GuestSocketHandler(relay: relay)))
-        await server.appendRoute("GET /host", to: .webSocket(HostChannelHandler(relay: relay)))
+        // The host channel is the Canvas page's private door: only loopback
+        // peers may upgrade — a LAN client on /host could otherwise puppet
+        // every Guest.
+        let hostUpgrade = WebSocketHTTPHandler.webSocket(HostChannelHandler(relay: relay))
+        await server.appendRoute("GET /host") { request in
+            guard Self.isLoopback(request.remoteAddress) else {
+                return HTTPResponse(statusCode: .forbidden)
+            }
+            return try await hostUpgrade.handleRequest(request)
+        }
 
         let task = Task { _ = try? await server.run() }
         do {
@@ -108,6 +116,21 @@ final class SessionServer {
         return sanitizedDeviceName()
     }
 
+    /// True only for loopback peers, judged by the socket's own address —
+    /// never by spoofable headers.
+    nonisolated static func isLoopback(_ address: HTTPRequest.Address?) -> Bool {
+        switch address {
+        case let .ip4(ip, port: _):
+            return ip.hasPrefix("127.")
+        case let .ip6(ip, port: _):
+            return ip == "::1" || ip == "0:0:0:0:0:0:0:1" || ip.hasPrefix("::ffff:127.")
+        case .unix:
+            return true  // Same-process by definition.
+        case .none:
+            return false
+        }
+    }
+
     private static func sanitizedDeviceName() -> String {
         // "Faraz's iPad" → "Farazs-iPad": drop apostrophes, hyphenate the
         // rest of the non-alphanumerics, collapse and trim the hyphens.
@@ -121,13 +144,20 @@ final class SessionServer {
 }
 
 /// The relay hub between Guest sockets (`/sync`) and the Canvas's loopback
-/// channel (`/host`). This ticket only tracks the live connections and
-/// closes them on teardown; #28 adds the actual shuttling — each Guest frame
-/// wrapped in a `{sid, ev, data}` envelope onto the host channel, and
-/// envelope frames from the host fanned back out to the matching Guest.
+/// channel (`/host`). Pure shuttling, no product logic: each Guest event
+/// rides to the Canvas as one JSON envelope — `{sid, ev: "open"}` on
+/// connect, `{sid, ev: "frame", data}` per frame, `{sid, ev: "close"}` on
+/// disconnect — and the Canvas addresses envelopes back: `frame` to deliver
+/// a wire frame to that Guest, `close` to drop the Guest's socket. The
+/// envelope grammar is mirrored (by hand — Swift can't import it) from the
+/// Canvas's canvas/src/session/envelope.ts.
+///
+/// A Guest connecting before the Canvas has dialed `/host` loses its "open"
+/// envelope; its sync client notices the missing pongs, reconnects, and the
+/// fresh socket announces itself again — self-healing by design.
 actor SessionRelay {
     private var host: AsyncStream<WSMessage>.Continuation?
-    private var guests: [UUID: AsyncStream<WSMessage>.Continuation] = [:]
+    private var guests: [String: AsyncStream<WSMessage>.Continuation] = [:]
 
     // MARK: Host channel (the Canvas page)
 
@@ -138,7 +168,27 @@ actor SessionRelay {
     }
 
     func hostFrame(_ message: WSMessage) {
-        // #28: parse the envelope, forward data to guests[sid].
+        // tldraw sync frames are text; anything else is not an envelope.
+        guard case let .text(text) = message,
+            let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)),
+            let envelope = object as? [String: Any],
+            let sid = envelope["sid"] as? String,
+            let ev = envelope["ev"] as? String
+        else { return }
+
+        switch ev {
+        case "frame":
+            guard let data = envelope["data"] as? String else { return }
+            guests[sid]?.yield(.text(data))
+        case "close":
+            // The room dropped this Guest (e.g. an incompatible client).
+            if let guest = guests.removeValue(forKey: sid) {
+                guest.yield(.close(.normalClosure))
+                guest.finish()
+            }
+        default:
+            break  // Unknown envelope kinds drop silently, like the Bridge.
+        }
     }
 
     func hostDisconnected() {
@@ -148,17 +198,26 @@ actor SessionRelay {
     // MARK: Guest sockets (browsers on the LAN)
 
     func guestConnected(_ id: UUID, outbound: AsyncStream<WSMessage>.Continuation) {
-        guests[id] = outbound
-        // #28: envelope {sid, ev: "open"} onto the host channel.
+        guests[id.uuidString] = outbound
+        sendToHost(["sid": id.uuidString, "ev": "open"])
     }
 
     func guestFrame(_ id: UUID, _ message: WSMessage) {
-        // #28: envelope {sid, ev: "msg", data} onto the host channel.
+        guard case let .text(text) = message else { return }
+        sendToHost(["sid": id.uuidString, "ev": "frame", "data": text])
     }
 
     func guestDisconnected(_ id: UUID) {
-        guests.removeValue(forKey: id)
-        // #28: envelope {sid, ev: "close"} onto the host channel.
+        guests.removeValue(forKey: id.uuidString)
+        sendToHost(["sid": id.uuidString, "ev": "close"])
+    }
+
+    private func sendToHost(_ envelope: [String: Any]) {
+        guard let host,
+            let data = try? JSONSerialization.data(withJSONObject: envelope),
+            let text = String(data: data, encoding: .utf8)
+        else { return }
+        host.yield(.text(text))
     }
 
     func closeAll() {
