@@ -16,23 +16,22 @@
 //   QuickActions.
 //
 // Shape vocabulary (all 20 GeoShapeGeoStyle values, no overflow hunting):
-// - Dock (always visible): rectangle, ellipse, diamond + core tools.
-// - Rail (always visible, right edge): triangle, cloud, star, hexagon, x-box.
-// - Tray grid (one tap on the rail's More button): the remaining 12.
+// - Dock (always visible): tools only — draw, select, eraser, arrow, line,
+//   text, note.
+// - Rail (always visible, right edge): rectangle, ellipse, diamond,
+//   triangle, cloud, star.
+// - Tray grid (one tap on the rail's More button): the remaining 14.
 import { useEffect } from 'react'
 import {
   ArrowToolbarItem,
   DefaultStylePanel,
   DefaultStylePanelContent,
   DefaultToolbar,
-  DiamondToolbarItem,
   DrawToolbarItem,
-  EllipseToolbarItem,
   EraserToolbarItem,
   GeoShapeGeoStyle,
   LineToolbarItem,
   NoteToolbarItem,
-  RectangleToolbarItem,
   SelectToolbarItem,
   TextToolbarItem,
   TldrawUiMenuContextProvider,
@@ -66,16 +65,19 @@ const MARK_MAKING_TOOLS = new Set([
 
 // Number of dock items below. minItems === maxItems pins DefaultToolbar's
 // OverflowingToolbar budget so no tool is ever demoted into the "..." menu.
-const DOCK_TOOL_COUNT = 10
+const DOCK_TOOL_COUNT = 7
 
-// Frequent extra geo shapes, always visible on the right-edge rail.
-const RAIL_GEO = ['triangle', 'cloud', 'star', 'hexagon', 'x-box'] as const
+// ALL geo shapes live on the rail (device feedback, #21): the dock is tools
+// only, so "where do shapes live" has one answer. The six most frequent are
+// always visible; the rest are one tap away in the tray grid.
+const RAIL_GEO = ['rectangle', 'ellipse', 'diamond', 'triangle', 'cloud', 'star'] as const
 
-// Everything else in tldraw's geo set, one tap away in the tray grid.
-// Together with the dock's rectangle/ellipse/diamond and the rail, this
-// covers all 20 GeoShapeGeoStyle values. Tool ids equal geo values (each geo
-// value is registered as its own TLUiToolItem by tldraw's useTools).
+// Everything else in tldraw's geo set. Together with the rail this covers
+// all 20 GeoShapeGeoStyle values. Tool ids equal geo values (each geo value
+// is registered as its own TLUiToolItem by tldraw's useTools).
 const TRAY_GEO = [
+  'hexagon',
+  'x-box',
   'oval',
   'trapezoid',
   'rhombus',
@@ -252,13 +254,11 @@ function StageToolbar() {
   return (
     <>
       <DefaultToolbar minItems={DOCK_TOOL_COUNT} maxItems={DOCK_TOOL_COUNT}>
-        {/* Draw first: the meeting flow starts with the Pencil. */}
+        {/* Draw first: the meeting flow starts with the Pencil. Tools only —
+            every shape lives on the rail. */}
         <DrawToolbarItem />
         <SelectToolbarItem />
         <EraserToolbarItem />
-        <RectangleToolbarItem />
-        <EllipseToolbarItem />
-        <DiamondToolbarItem />
         <ArrowToolbarItem />
         <LineToolbarItem />
         <TextToolbarItem />
