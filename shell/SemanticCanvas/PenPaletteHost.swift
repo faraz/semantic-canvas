@@ -20,6 +20,7 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
     private let responderHost = PaletteResponderView()
     private var wired = false
     private var wantsPaletteVisible = true
+    private var keyboardUp = false
 
     init(webView: WKWebView) {
         self.webView = webView
@@ -39,6 +40,12 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
             name: UIResponder.keyboardDidHideNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
     }
 
     @available(*, unavailable)
@@ -55,10 +62,14 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
         setPaletteVisible(wantsPaletteVisible)
     }
 
-    /// Bridge control: the Canvas's "Pencil palette" menu toggle.
+    /// Bridge control: the Canvas's "Pencil palette" toggle. Registers BOTH
+    /// the host view and the webview (the probe's proven combination): the
+    /// palette stays up whichever of the two holds first responder, so
+    /// ordinary canvas taps don't dismiss it.
     func setPaletteVisible(_ visible: Bool) {
         wantsPaletteVisible = visible
         picker.setVisible(visible, forFirstResponder: responderHost)
+        picker.setVisible(visible, forFirstResponder: webView)
         if visible {
             responderHost.becomeFirstResponder()
         } else {
@@ -69,11 +80,29 @@ final class PenPaletteHost: UIView, PKToolPickerObserver {
     /// Web text focus takes first responder (palette hides with the
     /// keyboard); reclaim once the keyboard goes away.
     @objc private func keyboardDidHide() {
+        keyboardUp = false
         guard wantsPaletteVisible, window != nil else { return }
         responderHost.becomeFirstResponder()
     }
 
+    @objc private func keyboardWillShow() {
+        keyboardUp = true
+    }
+
     // MARK: PKToolPickerObserver
+
+    /// Recovery: if the palette hides while it is supposed to be visible and
+    /// no keyboard is up (some interaction stole first responder from every
+    /// registered view), quietly reclaim. The iPad palette has no close
+    /// control of its own, so an unwanted hide is the only false positive.
+    func toolPickerVisibilityDidChange(_ toolPicker: PKToolPicker) {
+        guard !toolPicker.isVisible, wantsPaletteVisible, !keyboardUp, window != nil
+        else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.wantsPaletteVisible, !self.keyboardUp else { return }
+            self.responderHost.becomeFirstResponder()
+        }
+    }
 
     func toolPickerSelectedToolItemDidChange(_ toolPicker: PKToolPicker) {
         guard #available(iOS 18.0, *) else {

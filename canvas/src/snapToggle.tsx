@@ -15,6 +15,7 @@ import {
   TldrawUiMenuItem,
 } from 'tldraw'
 import { isSnapEnabled, setSnapEnabled, subscribeSnapEnabled } from './snapPreference'
+import { PenPaletteQuickAction } from './penPaletteUi'
 
 function useSnapEnabled(): boolean {
   return useSyncExternalStore(subscribeSnapEnabled, isSnapEnabled)
@@ -44,6 +45,7 @@ export function QuickActions() {
         isSelected={snapEnabled}
         onSelect={() => setSnapEnabled(!snapEnabled)}
       />
+      <PenPaletteQuickAction />
     </DefaultQuickActions>
   )
 }
