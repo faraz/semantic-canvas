@@ -25,7 +25,7 @@ import { makeTestEditor } from '../tldrawTestEditor'
 
 
 let strokeSeq = 0
-function completeInk(editor: Editor, points: InkPoint[]) {
+function completeInk(editor: Editor, points: InkPoint[], meta?: Record<string, string>) {
   const id = createShapeId(`stroke-${strokeSeq++}`)
   const path = b64Vecs.encodePoints(
     points.map((p) => ({ x: p.x, y: p.y, z: 0.5 })),
@@ -36,6 +36,7 @@ function completeInk(editor: Editor, points: InkPoint[]) {
     type: 'draw',
     x: 10,
     y: 20,
+    meta,
     props: { segments: [{ type: 'free', path }], isComplete: false },
   })
   editor.updateShape({ id, type: 'draw', props: { isComplete: true } })
@@ -68,6 +69,31 @@ describe('wireShapeSnap', () => {
     // Placement: stroke-local bounds offset by the draw shape's position.
     expect(geo.x).toBeCloseTo(10 + 200 - 80, -1)
     expect(geo.y).toBeCloseTo(20 + 200 - 60, -1)
+  })
+
+  it('swaps a preset-stamped circular Ink stroke for a geo ellipse (#31)', async () => {
+    // Ink presets ride shape.meta and render via InkDrawShapeUtil (active in
+    // makeTestEditor); the stroke stays type 'draw', so Shape Snap must keep
+    // working on it unchanged.
+    const editor = makeTestEditor()
+    let snaps = 0
+    wireShapeSnap(editor, { onSnap: () => snaps++ })
+
+    const id = completeInk(
+      editor,
+      roughEllipse({ cx: 200, cy: 200, rx: 80, ry: 60, jitter: 3, seed: 4 }),
+      { inkPreset: 'watercolor' }
+    )
+    expect(editor.getShape(id)?.meta.inkPreset).toBe('watercolor')
+    await flushSnap()
+
+    expect(snaps).toBe(1)
+    expect(editor.getShape(id)).toBeUndefined()
+    const shapes = [...editor.getCurrentPageShapeIds()].map((sid) => editor.getShape(sid)!)
+    expect(shapes).toHaveLength(1)
+    const geo = shapes[0] as TLGeoShape
+    expect(geo.type).toBe('geo')
+    expect(geo.props.geo).toBe('ellipse')
   })
 
   it('swaps a completed boxy Ink stroke for a geo rectangle', async () => {

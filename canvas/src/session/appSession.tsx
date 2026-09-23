@@ -124,7 +124,7 @@ export function wireSessionToBridge(opts: WireSessionOptions = {}): () => void {
 // in-Canvas room over the in-process pipe. Assets ride inline as base64 for
 // MVP (useSync requires an asset store; ink-first Boards make this fine).
 export function SessionCanvas(
-  props: Pick<TldrawProps, 'assetUrls' | 'components' | 'onMount'>
+  props: Pick<TldrawProps, 'assetUrls' | 'components' | 'shapeUtils' | 'onMount'>
 ) {
   const connect = useCallback((query: { sessionId: string }) => {
     const room = lifecycle.getRoom()

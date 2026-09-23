@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 import './tldrawTestShims'
 import { describe, expect, it } from 'vitest'
-import { DefaultColorStyle, DefaultSizeStyle } from 'tldraw'
+import { createShapeId, DefaultColorStyle, DefaultSizeStyle } from 'tldraw'
+import { b64Vecs } from '@tldraw/tlschema'
 import { makeTestEditor } from './tldrawTestEditor'
-import { applyPenTool, nearestTldrawColor, sizeBucket } from './penPalette'
+import {
+  applyPenTool,
+  currentInkPresetName,
+  nearestTldrawColor,
+  sizeBucket,
+  wirePenPalette,
+} from './penPalette'
 
 describe('nearestTldrawColor', () => {
   it('maps exact swatch values to their styles', () => {
@@ -50,7 +57,7 @@ describe('applyPenTool', () => {
     expect(editor.getStyleForNextShape(DefaultSizeStyle)).toBe('m')
   })
 
-  it('maps marker ink to the highlight tool', () => {
+  it('maps marker ink to the draw tool with the marker preset (#31)', () => {
     const editor = makeTestEditor()
     applyPenTool(editor, {
       v: 1,
@@ -60,8 +67,24 @@ describe('applyPenTool', () => {
       colorHex: '#f1ac4b',
       width: 18,
     })
-    expect(editor.getCurrentToolId()).toBe('highlight')
+    expect(editor.getCurrentToolId()).toBe('draw')
+    expect(currentInkPresetName()).toBe('marker')
     expect(editor.getStyleForNextShape(DefaultSizeStyle)).toBe('xl')
+  })
+
+  it('tracks the current ink preset per selection, untouched by eraser/lasso', () => {
+    const editor = makeTestEditor()
+    applyPenTool(editor, {
+      v: 1,
+      event: 'penToolChanged',
+      kind: 'ink',
+      inkType: 'watercolor',
+      colorHex: '#4263eb',
+      width: 12,
+    })
+    expect(currentInkPresetName()).toBe('watercolor')
+    applyPenTool(editor, { v: 1, event: 'penToolChanged', kind: 'eraser' })
+    expect(currentInkPresetName()).toBe('watercolor')
   })
 
   it('maps eraser and lasso to eraser and select', () => {
@@ -77,5 +100,78 @@ describe('applyPenTool', () => {
     editor.setCurrentTool('draw')
     applyPenTool(editor, { v: 1, event: 'penToolChanged', kind: 'other' })
     expect(editor.getCurrentToolId()).toBe('draw')
+  })
+})
+
+// A minimal one-segment Ink stroke; the meta hook doesn't read the points,
+// but geometry computation needs a real path.
+function makeInkStroke(editor: ReturnType<typeof makeTestEditor>, name: string) {
+  const id = createShapeId(name)
+  const path = b64Vecs.encodePoints(
+    [
+      { x: 0, y: 0, z: 0.5 },
+      { x: 40, y: 10, z: 0.5 },
+      { x: 90, y: 25, z: 0.5 },
+    ],
+    3
+  )
+  editor.createShape({
+    id,
+    type: 'draw',
+    x: 0,
+    y: 0,
+    props: { segments: [{ type: 'free', path }], isComplete: true },
+  })
+  return id
+}
+
+describe('wirePenPalette meta stamping (#31)', () => {
+  it('stamps new draw shapes with the palette-selected ink preset', () => {
+    const editor = makeTestEditor()
+    const dispose = wirePenPalette(editor)
+    window.__bridgeReceive?.({
+      v: 1,
+      event: 'penToolChanged',
+      kind: 'ink',
+      inkType: 'marker',
+      colorHex: '#e03131',
+      width: 18,
+    })
+    const id = makeInkStroke(editor, 'stamped-marker')
+    expect(editor.getShape(id)?.meta.inkPreset).toBe('marker')
+    dispose()
+  })
+
+  it('stamps the fountainPen preset for the reed ink', () => {
+    const editor = makeTestEditor()
+    const dispose = wirePenPalette(editor)
+    window.__bridgeReceive?.({
+      v: 1,
+      event: 'penToolChanged',
+      kind: 'ink',
+      inkType: 'reed',
+      colorHex: '#1d1d1d',
+      width: 4,
+    })
+    const id = makeInkStroke(editor, 'stamped-reed')
+    expect(editor.getShape(id)?.meta.inkPreset).toBe('fountainPen')
+    dispose()
+  })
+
+  it('leaves non-draw shapes unstamped', () => {
+    const editor = makeTestEditor()
+    const dispose = wirePenPalette(editor)
+    const id = createShapeId('a-box')
+    editor.createShape({ id, type: 'geo', x: 0, y: 0, props: { w: 50, h: 50 } })
+    expect(editor.getShape(id)?.meta.inkPreset).toBeUndefined()
+    dispose()
+  })
+
+  it('restores the prior initial-meta hook on dispose', () => {
+    const editor = makeTestEditor()
+    const dispose = wirePenPalette(editor)
+    dispose()
+    const id = makeInkStroke(editor, 'after-dispose')
+    expect(editor.getShape(id)?.meta.inkPreset).toBeUndefined()
   })
 })

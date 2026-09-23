@@ -20,6 +20,7 @@ import { wireIllustrationSnap } from './illustrationSnap/wire'
 import { wireTemplateCapture } from './illustrationSnap/capture'
 import { QuickActions, SnapToggleMenuItem } from './snapToggle'
 import { wirePenPalette } from './penPalette'
+import { InkDrawShapeUtil } from './ink/InkDrawShapeUtil'
 import { PenPaletteMenuItem } from './penPaletteUi'
 import { SessionJoinPanel, SessionMenuItem } from './ui/sessionPanel'
 import { registerSessionEditor, SessionCanvas, useSessionPhase } from './session/appSession'
@@ -56,6 +57,12 @@ const components: TLComponents = {
   InFrontOfTheCanvas: SessionJoinPanel,
 }
 
+// Ink presets (#31): replaces the stock draw util (same static type 'draw';
+// <Tldraw> merges customs over defaults by type) so strokes render their
+// PencilKit character from meta.inkPreset. Module-level: <Tldraw> compares
+// the array by identity, so it must be stable across renders.
+const shapeUtils = [InkDrawShapeUtil]
+
 function mount(editor: Editor) {
   const disposeSession = registerSessionEditor(editor)
   const disposePenPalette = wirePenPalette(editor)
@@ -87,6 +94,7 @@ export function App() {
         key="session"
         assetUrls={assetUrls}
         components={components}
+        shapeUtils={shapeUtils}
         onMount={mount}
       />
     )
@@ -97,6 +105,7 @@ export function App() {
       persistenceKey="semantic-canvas-board"
       assetUrls={assetUrls}
       components={components}
+      shapeUtils={shapeUtils}
       onMount={mount}
     />
   )

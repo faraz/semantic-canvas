@@ -17,7 +17,14 @@ import 'tldraw/tldraw.css'
 import { assetUrls } from './assetUrls'
 import { guestSyncUri } from './bootMode'
 import { postShapeSnapped } from './bridge'
+import { InkDrawShapeUtil } from './ink/InkDrawShapeUtil'
 import { wireShapeSnap } from './shapeSnap/wire'
+
+// Ink presets (#31): the Host's stroke meta syncs to Guests, so Guests need
+// the same draw util to render each ink's character. Guest-drawn strokes
+// carry no preset meta and keep tldraw's stock rendering. Module-level for a
+// stable identity across renders.
+const shapeUtils = [InkDrawShapeUtil]
 
 // Presence needs a name; first-time browsers have none set. tldraw keeps
 // this in localStorage, so a Guest who renames themselves stays renamed.
@@ -36,5 +43,7 @@ export function GuestApp() {
     uri: guestSyncUri(window.location.href),
     assets: inlineBase64AssetStore,
   })
-  return <Tldraw store={store} assetUrls={assetUrls} onMount={mountGuest} />
+  return (
+    <Tldraw store={store} assetUrls={assetUrls} shapeUtils={shapeUtils} onMount={mountGuest} />
+  )
 }

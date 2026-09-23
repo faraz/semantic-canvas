@@ -1,11 +1,13 @@
-// Pen palette mapping (#30): the Shell hosts Apple's PKToolPicker and
-// reports every selection over the Bridge; this module makes those
-// selections drive the Canvas so picking an Apple pencil simply draws.
+// Pen palette mapping (#30, presets #31): the Shell hosts Apple's
+// PKToolPicker and reports every selection over the Bridge; this module makes
+// those selections drive the Canvas so picking an Apple pencil simply draws.
 //
-// Mapping decisions (spec'd on the ticket):
-// - marker ink → tldraw's highlight tool (translucent, wide — the same job);
-//   every other ink (pen, pencil, monoline, fountainPen, watercolor, crayon,
-//   reed) → the draw tool.
+// Mapping decisions:
+// - every ink (pen, pencil, monoline, fountainPen, watercolor, crayon, reed,
+//   and — since #31 — marker) → the draw tool, with the ink's preset stamped
+//   on each new stroke's meta so InkDrawShapeUtil renders its character.
+//   (Marker used to switch to tldraw's highlight tool; it is now the marker
+//   preset on draw. tldraw's highlighter stays its own tool.)
 // - PencilKit's continuous color → the nearest of tldraw's 13 color styles.
 // - PencilKit's continuous width → tldraw's S/M/L/XL size buckets.
 // - eraser → eraser tool; lasso → select tool; unknown items → no-op.
@@ -17,6 +19,7 @@ import {
   type TLDefaultSizeStyle,
 } from 'tldraw'
 import { onBridgeMessage, type BridgeReceiveMessage } from './bridge'
+import { presetNameForInkType, type InkPresetName } from './ink/presets'
 
 // Reference RGB per tldraw color style (light-theme swatch values); nearest
 // match by squared RGB distance. Exact hue fidelity matters less than the
@@ -66,16 +69,20 @@ export function sizeBucket(width: number): TLDefaultSizeStyle {
 
 type PenToolChanged = Extract<BridgeReceiveMessage, { event: 'penToolChanged' }>
 
+// The palette's current ink preset. Module-level on purpose: the palette is
+// one physical picker and the initial-meta hook (below) needs the value at
+// stroke-creation time, whichever editor instance is live.
+let currentPreset: InkPresetName = 'pen'
+
+export function currentInkPresetName(): InkPresetName {
+  return currentPreset
+}
+
 export function applyPenTool(editor: Editor, message: PenToolChanged): void {
   switch (message.kind) {
     case 'ink': {
-      // inkType is the leaf of PencilKit's reverse-DNS raw value; match
-      // loosely so an OS rename degrades to the draw tool, never a no-op.
-      const inkType = message.inkType.toLowerCase()
-      const tool = inkType.includes('marker') || inkType.includes('highlight')
-        ? 'highlight'
-        : 'draw'
-      editor.setCurrentTool(tool)
+      currentPreset = presetNameForInkType(message.inkType)
+      editor.setCurrentTool('draw')
       editor.setStyleForNextShapes(DefaultColorStyle, nearestTldrawColor(message.colorHex))
       editor.setStyleForNextShapes(DefaultSizeStyle, sizeBucket(message.width))
       return
@@ -92,35 +99,23 @@ export function applyPenTool(editor: Editor, message: PenToolChanged): void {
 }
 
 export function wirePenPalette(editor: Editor): () => void {
-  return onBridgeMessage((message) => {
+  // Stamp the current preset on every new draw shape's meta. The editor
+  // merges getInitialMetaForShape under any explicit meta on createShapes
+  // (Editor.ts), so the draw tool's strokes pick this up. Composed over any
+  // prior hook (none exists in this codebase today — this is defensive
+  // against a future consumer) and restored on dispose.
+  const priorInitialMeta = editor.getInitialMetaForShape
+  editor.getInitialMetaForShape = (shape) => {
+    const base = priorInitialMeta.call(editor, shape)
+    if (shape.type !== 'draw') return base
+    return { ...base, inkPreset: currentPreset }
+  }
+  const unsubscribe = onBridgeMessage((message) => {
     if (message.event !== 'penToolChanged') return
-    debugToast(message)
     applyPenTool(editor, message)
   })
-}
-
-// TEMP DEBUG (#30 device diagnosis): flashes each palette message on screen
-// so a silent Shell (no toast) is distinguishable from a mapping fault
-// (toast but wrong behavior). Remove once the palette is verified on device.
-let toastEl: HTMLDivElement | null = null
-let toastTimer: ReturnType<typeof setTimeout> | undefined
-function debugToast(message: PenToolChanged): void {
-  if (typeof document === 'undefined') return
-  if (!toastEl) {
-    toastEl = document.createElement('div')
-    toastEl.style.cssText =
-      'position:fixed;left:50%;bottom:96px;transform:translateX(-50%);' +
-      'z-index:99999;padding:6px 12px;border-radius:8px;background:rgba(0,0,0,.75);' +
-      'color:#fff;font:12px ui-monospace,monospace;pointer-events:none'
-    document.body.appendChild(toastEl)
+  return () => {
+    editor.getInitialMetaForShape = priorInitialMeta
+    unsubscribe()
   }
-  toastEl.textContent =
-    message.kind === 'ink'
-      ? `pen: ${message.inkType} ${message.colorHex} w=${message.width.toFixed(1)}`
-      : `pen: ${message.kind}`
-  toastEl.style.display = 'block'
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => {
-    if (toastEl) toastEl.style.display = 'none'
-  }, 2000)
 }
