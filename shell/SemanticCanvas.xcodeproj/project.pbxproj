@@ -12,6 +12,7 @@
 		9B9767C412BC0ECD49CB7C64 /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 783111793B28107816B466DA /* index.html */; };
 		A2BDA0208CAC3493E81AED2D /* CanvasHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */; };
 		A983AE6FFD919D4EF062A36F /* SemanticCanvasApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */; };
+		AE5E6147AF49E27E3CC02B2F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6C0229D3A7661F0EBCA99290 /* Assets.xcassets */; };
 		B21B734FA6464726F995479C /* PenPaletteHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5076DC5B040A13D8D19A1EC /* PenPaletteHost.swift */; };
 /* End PBXBuildFile section */
 
@@ -19,6 +20,7 @@
 		167AB77F1FCDA5BD3214BF1C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		34EBEF749BA0260A8DD6B464 /* SemanticCanvas.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SemanticCanvas.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasHostView.swift; sourceTree = "<group>"; };
+		6C0229D3A7661F0EBCA99290 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		783111793B28107816B466DA /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		B926A3718BD3E7DF59813AC3 /* SessionServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionServer.swift; sourceTree = "<group>"; };
 		BCA6FB6869FB5DF9258D973F /* SemanticCanvasApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SemanticCanvasApp.swift; sourceTree = "<group>"; };
@@ -40,6 +42,7 @@
 		315FD8B3AD43251CD78E3E55 /* SemanticCanvas */ = {
 			isa = PBXGroup;
 			children = (
+				6C0229D3A7661F0EBCA99290 /* Assets.xcassets */,
 				64A9DD9DC13C1B6C3132F20A /* CanvasHostView.swift */,
 				783111793B28107816B466DA /* index.html */,
 				167AB77F1FCDA5BD3214BF1C /* Info.plist */,
@@ -131,6 +134,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AE5E6147AF49E27E3CC02B2F /* Assets.xcassets in Resources */,
 				9B9767C412BC0ECD49CB7C64 /* index.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
