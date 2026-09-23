@@ -4,7 +4,7 @@ import WebKit
 struct CanvasHostView: UIViewRepresentable {
     func makeCoordinator() -> BridgeCoordinator { BridgeCoordinator() }
 
-    func makeUIView(context: Context) -> WKWebView {
+    func makeUIView(context: Context) -> UIView {
         let config = WKWebViewConfiguration()
         // Persistent store: the Board's local persistence (tldraw IndexedDB)
         // must survive relaunch.
@@ -38,10 +38,13 @@ struct CanvasHostView: UIViewRepresentable {
 
         let url = Bundle.main.url(forResource: "index", withExtension: "html")!
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-        return webView
+
+        // The pen palette host wraps the webview: Apple's PKToolPicker picks
+        // the pen, the Canvas renders (#30).
+        return PenPaletteHost(webView: webView)
     }
 
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
 // The Bridge's Shell→Canvas leg: versioned { v, event } messages delivered
@@ -142,6 +145,12 @@ final class BridgeCoordinator: NSObject, WKScriptMessageHandler, WKNavigationDel
                         to: webView
                     )
                 }
+            }
+
+        case "setPenPaletteVisible":
+            guard let visible = body["visible"] as? Bool else { return }
+            Task { @MainActor in
+                PenPaletteHost.current?.setPaletteVisible(visible)
             }
 
         case "stopSessionRequested":

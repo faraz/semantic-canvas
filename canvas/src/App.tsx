@@ -19,6 +19,8 @@ import { wireInkCapture } from './shapeSnap/capture'
 import { wireIllustrationSnap } from './illustrationSnap/wire'
 import { wireTemplateCapture } from './illustrationSnap/capture'
 import { QuickActions, SnapToggleMenuItem } from './snapToggle'
+import { wirePenPalette } from './penPalette'
+import { PenPaletteMenuItem } from './penPaletteUi'
 import { SessionJoinPanel, SessionMenuItem } from './ui/sessionPanel'
 import { registerSessionEditor, SessionCanvas, useSessionPhase } from './session/appSession'
 
@@ -33,6 +35,7 @@ function MainMenu() {
           onSelect={() => clearBoard(editor)}
         />
         <SnapToggleMenuItem />
+        <PenPaletteMenuItem />
         <SessionMenuItem />
       </TldrawUiMenuGroup>
       <TabletMainMenuContent />
@@ -55,6 +58,7 @@ const components: TLComponents = {
 
 function mount(editor: Editor) {
   const disposeSession = registerSessionEditor(editor)
+  const disposePenPalette = wirePenPalette(editor)
   const illustrationSnap = wireIllustrationSnap(editor, { onSnap: postShapeSnapped })
   const disposeSnap = wireShapeSnap(editor, {
     onSnap: postShapeSnapped,
@@ -68,6 +72,7 @@ function mount(editor: Editor) {
     disposeCapture()
     disposeTemplateCapture()
     disposeSession()
+    disposePenPalette()
   }
 }
 

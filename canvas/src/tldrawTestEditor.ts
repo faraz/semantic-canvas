@@ -4,6 +4,7 @@ import {
   Editor,
   createTLStore,
   defaultBindingUtils,
+  defaultShapeTools,
   defaultShapeUtils,
   defaultTools,
 } from 'tldraw'
@@ -16,7 +17,7 @@ export function makeTestEditor(): Editor {
     }),
     shapeUtils: defaultShapeUtils,
     bindingUtils: defaultBindingUtils,
-    tools: defaultTools,
+    tools: [...defaultTools, ...defaultShapeTools],
     getContainer: () => document.body,
   })
 }

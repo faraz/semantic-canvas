@@ -11,6 +11,7 @@ export type BridgeMessage =
   | { v: 1; event: 'shapeSnapped' }
   | { v: 1; event: 'startSessionRequested' }
   | { v: 1; event: 'stopSessionRequested' }
+  | { v: 1; event: 'setPenPaletteVisible'; visible: boolean }
 
 // Shell→Canvas. Session state as the Shell's server reports it; `hostname`
 // is the device's bare mDNS name (no ".local" suffix, no scheme).
@@ -18,6 +19,15 @@ export type BridgeReceiveMessage =
   | { v: 1; event: 'sessionStarted'; port: number; hostname: string; ip?: string | null }
   | { v: 1; event: 'sessionStopped' }
   | { v: 1; event: 'sessionError'; message: string }
+  | {
+      v: 1
+      event: 'penToolChanged'
+      kind: 'ink'
+      inkType: string
+      colorHex: string
+      width: number
+    }
+  | { v: 1; event: 'penToolChanged'; kind: 'eraser' | 'lasso' | 'other' }
 
 // The webkit surface the Shell's WKWebView injects; absent in browsers and
 // tests, hence optional at every level. __bridgeReceive is the Canvas-owned
@@ -55,6 +65,11 @@ export function postStopSessionRequested(): void {
   post({ v: 1, event: 'stopSessionRequested' })
 }
 
+// Shows or hides the system pen palette (PKToolPicker) the Shell hosts.
+export function postSetPenPaletteVisible(visible: boolean): void {
+  post({ v: 1, event: 'setPenPaletteVisible', visible })
+}
+
 // ---- Shell→Canvas receive path -----------------------------------------
 
 const receivers = new Set<(message: BridgeReceiveMessage) => void>()
@@ -76,6 +91,15 @@ function isBridgeReceiveMessage(message: unknown): message is BridgeReceiveMessa
       return true
     case 'sessionError':
       return typeof m.message === 'string'
+    case 'penToolChanged':
+      if (m.kind === 'ink') {
+        return (
+          typeof m.inkType === 'string' &&
+          typeof m.colorHex === 'string' &&
+          typeof m.width === 'number'
+        )
+      }
+      return m.kind === 'eraser' || m.kind === 'lasso' || m.kind === 'other'
     default:
       return false
   }
