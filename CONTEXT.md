@@ -33,3 +33,13 @@ _Avoid_: sticker, stamp, icon recognition
 **Bridge**:
 The typed, versioned message channel between Canvas and Shell.
 _Avoid_: message handler, JS bridge, native bridge
+
+**Session**:
+The period during which the Board is hosted for Guests.
+_Avoid_: room (that's the sync-layer term), multiplayer
+
+**Host**:
+The iPad app serving the Session.
+
+**Guest**:
+A browser client joined to the Session.

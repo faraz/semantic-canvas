@@ -20,6 +20,7 @@ import { wireIllustrationSnap } from './illustrationSnap/wire'
 import { wireTemplateCapture } from './illustrationSnap/capture'
 import { QuickActions, SnapToggleMenuItem } from './snapToggle'
 import { SessionJoinPanel, SessionMenuItem } from './ui/sessionPanel'
+import { registerSessionEditor, SessionCanvas, useSessionPhase } from './session/appSession'
 
 function MainMenu() {
   const editor = useEditor()
@@ -53,6 +54,7 @@ const components: TLComponents = {
 }
 
 function mount(editor: Editor) {
+  const disposeSession = registerSessionEditor(editor)
   const illustrationSnap = wireIllustrationSnap(editor, { onSnap: postShapeSnapped })
   const disposeSnap = wireShapeSnap(editor, {
     onSnap: postShapeSnapped,
@@ -65,12 +67,28 @@ function mount(editor: Editor) {
     disposeSnap()
     disposeCapture()
     disposeTemplateCapture()
+    disposeSession()
   }
 }
 
 export function App() {
+  // Session (#26): while hosting, the editor joins the in-Canvas room via a
+  // useSync store instead of persistenceKey — the two are exclusive, so the
+  // remount at Session boundaries is a keyed mode switch (accepted per #24).
+  const sessionPhase = useSessionPhase()
+  if (sessionPhase === 'hosting') {
+    return (
+      <SessionCanvas
+        key="session"
+        assetUrls={assetUrls}
+        components={components}
+        onMount={mount}
+      />
+    )
+  }
   return (
     <Tldraw
+      key="solo"
       persistenceKey="semantic-canvas-board"
       assetUrls={assetUrls}
       components={components}
