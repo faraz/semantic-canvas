@@ -7,8 +7,8 @@
 //
 // Structure:
 // - StageToolbar wires the choreography (one editor event listener + one
-//   capture pointerdown listener on the tldraw container) and renders the
-//   bottom dock plus the right-thumb-edge shape tray.
+//   capture pointerdown listener on the tldraw container) and renders ONE
+//   bottom dock (device feedback #29: no second toolbar).
 // - The scope class `variant-stage-presence` and the `data-sp-ghost`
 //   attribute live on the tldraw container (editor.getContainer()), so the
 //   menu zone and portalled popovers — chrome we do not own as components —
@@ -16,36 +16,42 @@
 //   QuickActions.
 //
 // Shape vocabulary (all 20 GeoShapeGeoStyle values, no overflow hunting):
-// - Dock (always visible): tools only — draw, select, eraser, arrow, line,
-//   text, note.
-// - Rail (always visible, right edge): rectangle, ellipse, diamond,
-//   triangle, cloud, star.
-// - Tray grid (one tap on the rail's More button): the remaining 14.
-import { useEffect } from 'react'
+// - Dock (always visible): draw, select, eraser, arrow, line, text, note +
+//   rectangle, ellipse, diamond, triangle, cloud, star + the shape tray.
+// - Shape tray (one tap, opens above the dock): the remaining 14.
+import { useEffect, useState } from 'react'
 import {
   ArrowToolbarItem,
+  CloudToolbarItem,
   DefaultStylePanel,
   DefaultStylePanelContent,
   DefaultToolbar,
+  DiamondToolbarItem,
   DrawToolbarItem,
+  EllipseToolbarItem,
   EraserToolbarItem,
   GeoShapeGeoStyle,
   LineToolbarItem,
   NoteToolbarItem,
+  RectangleToolbarItem,
   SelectToolbarItem,
+  StarToolbarItem,
   TextToolbarItem,
+  TldrawUiButtonIcon,
   TldrawUiMenuContextProvider,
-  TldrawUiOrientationProvider,
+  TldrawUiPopover,
+  TldrawUiPopoverContent,
+  TldrawUiPopoverTrigger,
   TldrawUiToolbar,
   TldrawUiToolbarButton,
   ToolbarItem,
-  atom,
-  track,
+  TriangleToolbarItem,
   useEditor,
   useValue,
   type Editor,
   type TLComponents,
   type TLEventInfo,
+  type TLGeoShapeGeoStyle,
 } from 'tldraw'
 import './stage-presence.css'
 
@@ -63,16 +69,12 @@ const MARK_MAKING_TOOLS = new Set([
   'laser',
 ])
 
-// Number of dock items below. minItems === maxItems pins DefaultToolbar's
-// OverflowingToolbar budget so no tool is ever demoted into the "..." menu.
-const DOCK_TOOL_COUNT = 7
+// Number of dock items below (7 tools + 6 shapes + the tray trigger).
+// minItems === maxItems pins DefaultToolbar's OverflowingToolbar budget so
+// no tool is ever demoted into the "..." menu.
+const DOCK_TOOL_COUNT = 14
 
-// ALL geo shapes live on the rail (device feedback, #21): the dock is tools
-// only, so "where do shapes live" has one answer. The six most frequent are
-// always visible; the rest are one tap away in the tray grid.
-const RAIL_GEO = ['rectangle', 'ellipse', 'diamond', 'triangle', 'cloud', 'star'] as const
-
-// Everything else in tldraw's geo set. Together with the rail this covers
+// Everything in tldraw's geo set beyond the dock's six. Together they cover
 // all 20 GeoShapeGeoStyle values. Tool ids equal geo values (each geo value
 // is registered as its own TLUiToolItem by tldraw's useTools).
 const TRAY_GEO = [
@@ -92,9 +94,7 @@ const TRAY_GEO = [
   'arrow-right',
 ] as const
 
-/** Shared, module-level stage state: one truth for every piece of chrome. */
-const chromeGhosted = atom('stage-presence: chrome ghosted', false)
-const trayExpanded = atom('stage-presence: shape tray expanded', false)
+const SHAPE_TRAY_ID = 'stage-shape-tray'
 
 /**
  * Wires the lighting board. One listener on the editor's event stream (an
@@ -110,16 +110,18 @@ function useStageDirection(editor: Editor) {
     let linger: ReturnType<typeof setTimeout> | undefined
     let strokeInFlight = false
 
+    const setGhosted = (ghosted: boolean) => {
+      container.setAttribute('data-sp-ghost', String(ghosted))
+    }
+    setGhosted(false)
+
     const onEditorEvent = (info: TLEventInfo) => {
       switch (info.name) {
         case 'pointer_down': {
-          // Editor events only fire for canvas interactions; chrome taps
-          // never reach here. Any canvas touch dismisses the tray.
-          trayExpanded.set(false)
           if (!MARK_MAKING_TOOLS.has(editor.getCurrentToolId())) return
           strokeInFlight = true
           clearTimeout(linger)
-          chromeGhosted.set(true)
+          setGhosted(true)
           break
         }
         case 'pointer_up':
@@ -129,7 +131,7 @@ function useStageDirection(editor: Editor) {
           if (!strokeInFlight) return
           strokeInFlight = false
           clearTimeout(linger)
-          linger = setTimeout(() => chromeGhosted.set(false), GHOST_LINGER_MS)
+          linger = setTimeout(() => setGhosted(false), GHOST_LINGER_MS)
           break
         }
         default:
@@ -143,7 +145,7 @@ function useStageDirection(editor: Editor) {
       const target = domEvent.target
       if (target instanceof Element && target.closest('.tlui-layout')) {
         clearTimeout(linger)
-        chromeGhosted.set(false)
+        setGhosted(false)
       }
     }
 
@@ -159,113 +161,117 @@ function useStageDirection(editor: Editor) {
       clearTimeout(linger)
       container.classList.remove('variant-stage-presence')
       container.removeAttribute('data-sp-ghost')
-      chromeGhosted.set(false)
-      trayExpanded.set(false)
     }
   }, [editor])
 }
 
-/** Mirrors the ghost atom onto the container so CSS can fade all chrome. */
-function useGhostAttribute(editor: Editor) {
-  const ghosted = useValue(chromeGhosted)
-  useEffect(() => {
-    editor.getContainer().setAttribute('data-sp-ghost', String(ghosted))
-  }, [editor, ghosted])
-}
-
 /**
- * Right-thumb-edge shape tray: a slim vertical rail of five frequent shapes
- * plus a More toggle that flares the remaining twelve out as a fixed 3x4
- * grid. Expansion is a deliberate open/close (scale + fade in place); the
- * ghost choreography never moves any of these hit targets.
+ * The shape tray: a dock button that opens the remaining fourteen geo shapes
+ * in a grid above the dock. Reuses tldraw's overflow-popover machinery
+ * (toolbar-overflow menu context + close-on-select via the content toolbar's
+ * bubble-phase onClick), so touch selection, tooltips, and roving focus all
+ * behave exactly like the stock overflow menu.
  */
-const ShapeTray = track(function ShapeTray() {
+function ShapeTray() {
   const editor = useEditor()
-  const expanded = trayExpanded.get()
+  const [isOpen, setIsOpen] = useState(false)
 
-  // Light the More toggle when the active geo shape lives inside the closed
-  // tray, so the performer (and the audience) can see where the tool came
-  // from without opening it.
-  const nextGeo = editor.getStyleForNextShape(GeoShapeGeoStyle)
-  const trayHoldsActive =
-    editor.getCurrentToolId() === 'geo' &&
-    (TRAY_GEO as readonly string[]).includes(nextGeo)
+  // Which tray shape (if any) is the live tool: the trigger wears its icon
+  // so the current tool is always visible somewhere on the dock.
+  const activeTrayGeo = useValue(
+    'stage: active tray shape',
+    (): TLGeoShapeGeoStyle | null => {
+      if (editor.getCurrentToolId() !== 'geo') return null
+      const geo = editor.getSharedStyles().getAsKnownValue(GeoShapeGeoStyle)
+      return geo && (TRAY_GEO as readonly string[]).includes(geo) ? geo : null
+    },
+    [editor]
+  )
+
+  const closeTray = () => {
+    editor.menus.deleteOpenMenu(SHAPE_TRAY_ID)
+    setIsOpen(false)
+  }
 
   return (
-    <div className="sp-tray" data-expanded={expanded ? 'true' : 'false'}>
-      <div
-        className="sp-tray__flyout"
-        // Close after a pick (tldraw tool buttons select on touchstart, which
-        // suppresses click, so listen to the pointer, not the click).
-        onPointerUp={() => trayExpanded.set(false)}
-      >
-        <TldrawUiOrientationProvider orientation="horizontal" tooltipSide="top">
-          <TldrawUiToolbar label="More shapes" orientation="grid" className="sp-tray__grid">
-            <TldrawUiMenuContextProvider type="toolbar" sourceId="toolbar">
-              {TRAY_GEO.map((geo) => (
-                <ToolbarItem key={geo} tool={geo} />
-              ))}
-            </TldrawUiMenuContextProvider>
-          </TldrawUiToolbar>
-        </TldrawUiOrientationProvider>
-      </div>
-      <TldrawUiOrientationProvider orientation="vertical" tooltipSide="left">
-        <TldrawUiToolbar label="Shape tray" orientation="vertical" className="sp-tray__rail">
-          <TldrawUiMenuContextProvider type="toolbar" sourceId="toolbar">
-            {RAIL_GEO.map((geo) => (
+    <TldrawUiPopover id={SHAPE_TRAY_ID} open={isOpen} onOpenChange={setIsOpen}>
+      <TldrawUiPopoverTrigger>
+        <TldrawUiToolbarButton
+          type="tool"
+          className="sp-tray-trigger"
+          data-value="shape-tray"
+          title="More shapes"
+          aria-pressed={activeTrayGeo ? 'true' : 'false'}
+          isActive={activeTrayGeo !== null}
+        >
+          {activeTrayGeo ? (
+            <TldrawUiButtonIcon icon={`geo-${activeTrayGeo}`} />
+          ) : (
+            <ShapeTrayGlyph />
+          )}
+        </TldrawUiToolbarButton>
+      </TldrawUiPopoverTrigger>
+      <TldrawUiPopoverContent side="top" align="end" sideOffset={12}>
+        <TldrawUiToolbar
+          orientation="grid"
+          className="sp-shape-tray-grid"
+          label="More shapes"
+          onClick={closeTray}
+        >
+          <TldrawUiMenuContextProvider type="toolbar-overflow" sourceId="toolbar">
+            {TRAY_GEO.map((geo) => (
               <ToolbarItem key={geo} tool={geo} />
             ))}
           </TldrawUiMenuContextProvider>
-          <TldrawUiToolbarButton
-            type="icon"
-            className="sp-tray__more"
-            title={expanded ? 'Hide more shapes' : 'More shapes'}
-            aria-expanded={expanded}
-            isActive={trayHoldsActive}
-            onClick={() => trayExpanded.set(!expanded)}
-          >
-            {/* Inline glyph (no asset): square / circle / triangle / diamond,
-                one consistent stroke, reads as "shapes" on a video stream. */}
-            <svg
-              className="sp-tray__more-glyph"
-              width="22"
-              height="22"
-              viewBox="0 0 22 22"
-              fill="none"
-              aria-hidden="true"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
-              <circle cx="15.5" cy="6.5" r="3.6" stroke="currentColor" strokeWidth="1.7" />
-              <path d="M6.5 12.8 L10 19 H3 Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-              <path d="M15.5 12 L19.2 15.5 L15.5 19 L11.8 15.5 Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-            </svg>
-          </TldrawUiToolbarButton>
         </TldrawUiToolbar>
-      </TldrawUiOrientationProvider>
-    </div>
+      </TldrawUiPopoverContent>
+    </TldrawUiPopover>
   )
-})
+}
 
-/** Bottom dock: every core tool + the three headline shapes, pinned. */
+// Inline glyph (no asset): square / circle / triangle / diamond, one
+// consistent stroke, reads as "shapes" on a video stream.
+function ShapeTrayGlyph() {
+  return (
+    <svg
+      className="sp-tray-glyph"
+      width="22"
+      height="22"
+      viewBox="0 0 22 22"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="15.5" cy="6.5" r="3.6" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M6.5 12.8 L10 19 H3 Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M15.5 12 L19.2 15.5 L15.5 19 L11.8 15.5 Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** The one dock: tools first, then shapes, then the tray. */
 function StageToolbar() {
   const editor = useEditor()
   useStageDirection(editor)
-  useGhostAttribute(editor)
   return (
-    <>
-      <DefaultToolbar minItems={DOCK_TOOL_COUNT} maxItems={DOCK_TOOL_COUNT}>
-        {/* Draw first: the meeting flow starts with the Pencil. Tools only —
-            every shape lives on the rail. */}
-        <DrawToolbarItem />
-        <SelectToolbarItem />
-        <EraserToolbarItem />
-        <ArrowToolbarItem />
-        <LineToolbarItem />
-        <TextToolbarItem />
-        <NoteToolbarItem />
-      </DefaultToolbar>
+    <DefaultToolbar minItems={DOCK_TOOL_COUNT} maxItems={DOCK_TOOL_COUNT}>
+      {/* Draw first: the meeting flow starts with the Pencil. */}
+      <DrawToolbarItem />
+      <SelectToolbarItem />
+      <EraserToolbarItem />
+      <ArrowToolbarItem />
+      <LineToolbarItem />
+      <TextToolbarItem />
+      <NoteToolbarItem />
+      {/* The six shapes a meeting actually reaches for, tray at the end. */}
+      <RectangleToolbarItem />
+      <EllipseToolbarItem />
+      <DiamondToolbarItem />
+      <TriangleToolbarItem />
+      <CloudToolbarItem />
+      <StarToolbarItem />
       <ShapeTray />
-    </>
+    </DefaultToolbar>
   )
 }
 

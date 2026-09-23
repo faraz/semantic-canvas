@@ -36,8 +36,7 @@
 .variant-stage-presence .tlui-main-toolbar,
 .variant-stage-presence .tlui-menu-zone,
 .variant-stage-presence .tlui-style-panel,
-.variant-stage-presence .tlui-navigation-panel,
-.variant-stage-presence .sp-tray {
+.variant-stage-presence .tlui-navigation-panel {
   transition: opacity var(--sp-raise) linear;
   will-change: opacity;
 }
@@ -45,8 +44,7 @@
 .variant-stage-presence[data-sp-ghost='true'] .tlui-main-toolbar,
 .variant-stage-presence[data-sp-ghost='true'] .tlui-menu-zone,
 .variant-stage-presence[data-sp-ghost='true'] .tlui-style-panel,
-.variant-stage-presence[data-sp-ghost='true'] .tlui-navigation-panel,
-.variant-stage-presence[data-sp-ghost='true'] .sp-tray {
+.variant-stage-presence[data-sp-ghost='true'] .tlui-navigation-panel {
   opacity: var(--sp-ghost);
   /* Slight delay so a quick tick mark doesn't flicker the chrome. */
   transition: opacity var(--sp-dim) var(--sp-ease) 60ms;
@@ -85,110 +83,32 @@
   border-radius: 999px;
 }
 
-/* ---- Shape tray (right thumb edge) ------------------------------------ */
+/* ---- Shape tray (dock flyout) ----------------------------------------- */
 
-/* Fixed to the right edge, vertically centered. .tlui-layout's `contain`
-   makes it the containing block, and it spans the viewport, so this rides
-   the true screen edge in both orientations. The wrapper is a pass-through;
-   its children re-enable pointer events. The centering transform is static —
-   the ghost fade never touches transform, so hit targets never move. */
-.variant-stage-presence .sp-tray {
-  position: fixed;
-  right: max(10px, env(safe-area-inset-right));
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: var(--tl-layer-panels);
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  pointer-events: none;
-}
-
-/* The always-visible rail: five frequent shapes + the More toggle. */
-.variant-stage-presence .sp-tray__rail {
-  pointer-events: all;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 5px;
-  border-radius: 999px;
-  background: var(--tl-color-panel);
-  box-shadow: var(--sp-ring), var(--tl-shadow-3);
-}
-
-.variant-stage-presence .sp-tray__rail .tlui-button {
-  height: 52px;
-  width: 52px;
-  min-width: 52px;
-  border-radius: 999px;
-}
-.variant-stage-presence .sp-tray__rail .tlui-icon {
+/* Trigger glyph sizing to match the dock icons. */
+.variant-stage-presence .sp-tray-glyph {
   width: 22px;
   height: 22px;
 }
-.variant-stage-presence .sp-tray__rail .tlui-button__tool::after {
-  inset: 3px;
-  border-radius: 999px;
-}
 
-/* More toggle: seam above it separates "shapes" from "the rest". */
-.variant-stage-presence .sp-tray__more {
-  margin-top: 4px;
-  border-top: 1px solid var(--tl-color-divider);
-  border-radius: 0 0 999px 999px;
-}
-/* Open state: pressed-looking well. */
-.variant-stage-presence .sp-tray__more[aria-expanded='true'] {
-  background: var(--tl-color-muted-2);
-}
-/* The active geo lives inside the closed tray: light the toggle so the
-   current tool is always visible somewhere on stage. */
-.variant-stage-presence .sp-tray__more[data-isactive='true'] {
-  color: var(--tl-color-selected);
-}
-
-/* The flyout: the remaining twelve shapes as a fixed 3x4 grid flaring from
-   the rail. Stays mounted; closed = invisible, untappable, out of the a11y
-   tree via visibility (delayed so the fade can finish). */
-.variant-stage-presence .sp-tray__flyout {
-  pointer-events: all;
-  opacity: 0;
-  visibility: hidden;
-  transform: scale(0.94);
-  transform-origin: right center;
-  transition:
-    opacity 140ms var(--sp-ease),
-    transform 140ms var(--sp-ease),
-    visibility 0s linear 140ms;
-}
-.variant-stage-presence .sp-tray[data-expanded='true'] .sp-tray__flyout {
-  opacity: 1;
-  visibility: visible;
-  transform: scale(1);
-  transition:
-    opacity 160ms var(--sp-ease),
-    transform 160ms var(--sp-ease),
-    visibility 0s;
-}
-
-.variant-stage-presence .sp-tray__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 52px);
+/* The tray grid: the remaining fourteen shapes in a popover above the dock.
+   Overrides tldraw's 4-col .tlui-grid default and its negative margins. */
+.variant-stage-presence .sp-shape-tray-grid {
+  grid-template-columns: repeat(7, 52px);
   gap: 2px;
   padding: 8px;
-  border-radius: 24px;
-  background: var(--tl-color-panel);
-  box-shadow: var(--sp-ring), var(--tl-shadow-3);
+  overflow: visible;
 }
-.variant-stage-presence .sp-tray__grid .tlui-button {
+.variant-stage-presence .sp-shape-tray-grid > * {
+  margin: 0;
+}
+.variant-stage-presence .sp-shape-tray-grid .tlui-button {
   height: 52px;
   width: 52px;
   min-width: 52px;
   border-radius: 14px;
 }
-.variant-stage-presence .sp-tray__grid .tlui-icon {
+.variant-stage-presence .sp-shape-tray-grid .tlui-icon {
   width: 22px;
   height: 22px;
 }
@@ -285,14 +205,13 @@
   .variant-stage-presence .tlui-main-toolbar .tlui-button__tool {
     width: 48px;
   }
-  .variant-stage-presence .sp-tray__rail .tlui-button,
-  .variant-stage-presence .sp-tray__grid .tlui-button {
+  .variant-stage-presence .sp-shape-tray-grid .tlui-button {
     height: 48px;
     width: 48px;
     min-width: 48px;
   }
-  .variant-stage-presence .sp-tray__grid {
-    grid-template-columns: repeat(3, 48px);
+  .variant-stage-presence .sp-shape-tray-grid {
+    grid-template-columns: repeat(7, 48px);
   }
 }
 
@@ -302,12 +221,7 @@
   .variant-stage-presence .tlui-main-toolbar,
   .variant-stage-presence .tlui-menu-zone,
   .variant-stage-presence .tlui-style-panel,
-  .variant-stage-presence .tlui-navigation-panel,
-  .variant-stage-presence .sp-tray,
-  .variant-stage-presence .sp-tray__flyout {
+  .variant-stage-presence .tlui-navigation-panel {
     transition: none;
-  }
-  .variant-stage-presence .sp-tray__flyout {
-    transform: none;
   }
 }

@@ -78,7 +78,9 @@ describe('tablet ui smoke', () => {
       'line',
       'text',
       'note',
-      // Rail shapes are first-class tools too.
+      'rectangle',
+      'ellipse',
+      'diamond',
       'triangle',
       'cloud',
       'star',
@@ -96,9 +98,9 @@ describe('tablet ui smoke', () => {
     // button here.
     expect(el.querySelector('[data-testid="tools.more-button"]')).toBeNull()
 
-    // The right-edge shape rail and its flare-out tray are mounted.
-    expect(el.querySelector('.sp-tray')).toBeTruthy()
-    expect(el.querySelector('.sp-tray__grid')).toBeTruthy()
+    // The shape-tray trigger sits in the dock (its grid opens on demand).
+    expect(el.querySelector('[data-value="shape-tray"]')).toBeTruthy()
+    expect(el.querySelector('.sp-tray')).toBeNull()
 
     await act(async () => root.unmount())
     el.remove()
